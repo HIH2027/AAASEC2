@@ -82,4 +82,4 @@ The agent code can be based on single agent (day 1) or multi agent (day 2) with 
 
 Example: the agent does researches, the final result is a report written in .txt or .md, submit both the agent code, and the output report (the artifact). 
 Another Example: An agent that generates images based on a predefined style, you can give him a query and he will try to use MCP by
-!(https://docs.bfl.ml/api_integration/mcp_integration)[Black Forest Labs] or !(Fal AI)[https://fal.ai/docs/documentation/setting-up/mcp], in this case submit the code and the artifact (the generated images)
+[Black Forest Labs](https://docs.bfl.ml/api_integration/mcp_integration) or [Fal AI](https://fal.ai/docs/documentation/setting-up/mcp), in this case submit the code and the artifact (the generated images)
