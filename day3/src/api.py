@@ -1,27 +1,99 @@
-"""
-DAY 3 — HTTP API.
+"""FastAPI boundary for the Day 3 Evidence Brief Agent."""
 
-READ FIRST:  ../03-fastapi-openresponses.md
-             ../09-a2a.md   (for the agent card endpoint)
+from __future__ import annotations
 
-Do not continue to 04-docker.md until:
-    curl http://localhost:8000/healthz            -> {"status":"ok"}
-    curl -X POST http://localhost:8000/v1/responses \
-         -H 'Content-Type: application/json' -d '{"input":"hi"}'
-returns an OpenResponses-shaped JSON object.
+import os
+import time
+import uuid
 
-TODO:
-  1. app = FastAPI(...); agent = build_agent()   <- built ONCE, at startup
-  2. GET  /healthz
-  3. POST /v1/responses  — accept {"input": "...", "model": optional},
-     invoke the agent, return:
-       {id, object:"response", created_at, status:"completed", model,
-        output:[{type:"message", role:"assistant",
-                 content:[{type:"output_text", text: ...}]}]}
-     (a deliberate SUBSET of OpenResponses — the shape, not the whole spec)
-  4. GET /.well-known/agent-card.json — your A2A Agent Card. Use
-     STUDENT_NAME and PUBLIC_URL from the environment; the card's "url"
-     field must point at YOUR /v1/responses.
-"""
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
-# TODO
+try:
+    from .agent import build_agent
+except ImportError:
+    from agent import build_agent
+
+
+STUDENT_NAME = os.getenv("STUDENT_NAME", "HIH2027")
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8000").rstrip("/")
+
+app = FastAPI(
+    title=f"{STUDENT_NAME} Evidence Brief Agent",
+    description="AAASEC2 Day 3 agent exposed through an OpenResponses-style API.",
+    version="0.1.0",
+)
+
+# Build once when the service starts, not once per request.
+agent = build_agent()
+
+
+class ResponseRequest(BaseModel):
+    input: str = Field(min_length=1, description="Plain-text request for the agent")
+    model: str | None = None
+
+
+@app.get("/healthz")
+async def healthz() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/v1/responses")
+async def create_response(request: ResponseRequest) -> dict:
+    started = int(time.time())
+    try:
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": request.input}]}
+        )
+        text = result["messages"][-1].content
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Agent request failed") from exc
+
+    return {
+        "id": f"resp_{uuid.uuid4().hex[:24]}",
+        "object": "response",
+        "created_at": started,
+        "status": "completed",
+        "model": request.model or "hih2027-evidence-brief-agent",
+        "output": [
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": text}],
+            }
+        ],
+    }
+
+
+@app.get("/.well-known/agent-card.json")
+async def agent_card() -> dict:
+    return {
+        "protocolVersion": "1.0",
+        "name": f"{STUDENT_NAME}-evidence-brief-agent",
+        "description": (
+            "Creates concise, safety-aware evidence briefs and Markdown artifacts "
+            "while clearly stating source and evidence limitations."
+        ),
+        "url": f"{PUBLIC_URL}/v1/responses",
+        "version": "0.1.0",
+        "capabilities": {"streaming": False},
+        "defaultInputModes": ["text/plain"],
+        "defaultOutputModes": ["text/markdown", "text/plain"],
+        "skills": [
+            {
+                "id": "produce-evidence-brief",
+                "name": "Evidence brief",
+                "description": (
+                    "Turns supplied notes or sources into a structured, "
+                    "uncertainty-aware evidence brief."
+                ),
+                "tags": ["research", "evidence", "writing", "safety"],
+            },
+            {
+                "id": "save-evidence-brief",
+                "name": "Save evidence brief",
+                "description": "Saves the completed brief as a Markdown artifact.",
+                "tags": ["artifact", "markdown"],
+            },
+        ],
+    }
