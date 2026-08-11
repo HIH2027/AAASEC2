@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evidence Brief"
+  short_description: "Create concise, safety-aware evidence briefs"
+  default_prompt: "Use $produce-evidence-brief to create a concise evidence brief on a clinical or technical topic."
