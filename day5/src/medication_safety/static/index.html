@@ -7,138 +7,174 @@
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
-    <main>
-      <header>
-        <h1>Medication Safety Review</h1>
-        <p class="subtitle">
-          Pharmacist-facing drug&ndash;drug contraindication and interaction check.
-          The agent runs on the server; API keys and MCP tokens never reach this page.
-        </p>
-      </header>
-
-      <div class="notice" role="note">
-        <strong>Educational and research prototype.</strong> Not an authorised
-        medical device and not for clinical use.
-        It supports, and does not replace, a licensed pharmacist and the
-        treating prescriber. Enter de-identified data only &mdash; no names, no
-        record numbers, no dates of birth.
+    <header class="page-header">
+      <div class="header-inner">
+        <div>
+          <h1>Medication Safety Review</h1>
+          <p class="subtitle">
+            Pharmacist-facing drug&ndash;drug contraindication and interaction check.
+            The agent runs on the server; keys and MCP tokens never reach this page.
+          </p>
+        </div>
+        <span class="pill" id="rule-pill">7 verified rules</span>
       </div>
 
-      <!-- STEP 1 — input slots -->
-      <section class="step">
-        <h2 class="step-title"><span class="step-number">1</span> Patient input</h2>
+      <!-- Kept inside the sticky header: a safety notice that scrolls away is
+           not a safety notice, and it also keeps the sticky offset constant. -->
+      <div class="notice" role="note">
+        <strong>Educational and research prototype &mdash; not for clinical use.</strong>
+        It supports, and does not replace, a licensed pharmacist and the treating
+        prescriber. Enter de-identified data only.
+      </div>
+    </header>
 
-        <div class="slot-actions">
-          <button id="load-sample" class="secondary">Load sample profile</button>
-          <button id="load-mcp" class="secondary">Fetch protected profile over MCP</button>
-          <button id="clear" class="secondary">Clear</button>
+    <div class="layout">
+      <!-- ---------- input column ---------- -->
+      <aside class="col-input">
+        <div class="panel">
+          <h2 class="panel-title">
+            <span class="step-number">1</span> Patient input
+          </h2>
+
+          <div class="slot-actions">
+            <button id="load-sample" class="secondary small">Sample profile</button>
+            <button id="load-mcp" class="secondary small">Fetch over MCP</button>
+            <button id="clear" class="secondary small">Clear</button>
+          </div>
+
+          <fieldset>
+            <legend>Medications</legend>
+            <div id="med-slots" class="med-slots"></div>
+            <button id="add-med" class="secondary small">+ Add medication</button>
+          </fieldset>
+
+          <details id="param-details">
+            <summary>
+              Clinical parameters
+              <span class="summary-hint" id="param-count">none set</span>
+            </summary>
+            <p class="hint">
+              A blank slot is reported as &ldquo;Not provided&rdquo; and added to
+              the request list. It is never assumed normal.
+            </p>
+            <div class="slot-grid" id="param-slots"></div>
+          </details>
+
+          <fieldset class="mode-set">
+            <legend>Summary mode</legend>
+            <label>
+              <input type="radio" name="mode" value="offline" checked />
+              <span>Offline <em>deterministic, no LLM</em></span>
+            </label>
+            <label>
+              <input type="radio" name="mode" value="live" />
+              <span>Live AI <em>phrasing only</em></span>
+            </label>
+          </fieldset>
+
+          <div class="run-dock">
+            <button id="run" class="primary-wide">Run review</button>
+            <p id="status" class="status" role="status">
+              Load the sample or fill the slots, then run the review.
+            </p>
+          </div>
         </div>
+      </aside>
 
-        <fieldset>
-          <legend>Medications</legend>
-          <div id="med-slots"></div>
-          <button id="add-med" class="secondary small">+ Add medication</button>
-        </fieldset>
-
-        <fieldset>
-          <legend>Clinical parameters &mdash; leave blank if unknown</legend>
+      <!-- ---------- output column ---------- -->
+      <main class="col-output">
+        <div class="panel placeholder" id="placeholder">
+          <p class="placeholder-mark">&#9878;</p>
+          <p><strong>No review yet.</strong></p>
           <p class="hint">
-            A blank slot is reported as &ldquo;Not provided&rdquo; and added to the
-            request list. It is never assumed to be normal.
+            Enter a medication list on the left, or load the de-identified
+            sample profile, then run the review. Findings, sources and the
+            follow-up chat will appear here.
           </p>
-          <div class="slot-grid" id="param-slots"></div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Summary mode</legend>
-          <label>
-            <input type="radio" name="mode" value="offline" checked />
-            Offline (deterministic, no LLM request)
-          </label>
-          <label>
-            <input type="radio" name="mode" value="live" />
-            Live AI (phrasing only, traced in LangSmith)
-          </label>
-        </fieldset>
-
-        <button id="run">Run review</button>
-        <p id="status" class="status" role="status">
-          Fill the slots or load the sample profile, then run the review.
-        </p>
-      </section>
-
-      <!-- STEP 2 — output -->
-      <section id="results" class="step" hidden>
-        <h2 class="step-title"><span class="step-number">2</span> Assessment</h2>
-
-        <div class="cards">
-          <div class="card">
-            <span class="card-label">Verified findings</span>
-            <span class="card-value" id="finding-count"></span>
-          </div>
-          <div class="card">
-            <span class="card-label">Highest severity</span>
-            <span class="card-value" id="top-severity"></span>
-          </div>
-          <div class="card">
-            <span class="card-label">Summary source</span>
-            <span class="card-value" id="summary-source"></span>
-          </div>
         </div>
 
-        <div class="summary">
-          <h3>Handover summary</h3>
-          <p id="summary"></p>
-        </div>
+        <section id="results" class="panel" hidden>
+          <h2 class="panel-title">
+            <span class="step-number">2</span> Assessment
+          </h2>
 
-        <h3 class="section-heading">Patient profile</h3>
-        <table>
-          <tbody id="profile-rows"></tbody>
-        </table>
+          <div class="cards">
+            <div class="card">
+              <span class="card-label">Findings</span>
+              <span class="card-value" id="finding-count"></span>
+            </div>
+            <div class="card">
+              <span class="card-label">Highest severity</span>
+              <span class="card-value" id="top-severity"></span>
+            </div>
+            <div class="card">
+              <span class="card-label">Summary source</span>
+              <span class="card-value" id="summary-source"></span>
+            </div>
+          </div>
 
-        <h3 class="section-heading">Findings</h3>
-        <div id="findings"></div>
+          <div class="summary">
+            <h3>Handover summary</h3>
+            <p id="summary"></p>
+          </div>
 
-        <h3 class="section-heading">Patient-specific modifiers</h3>
-        <ul id="modifiers"></ul>
+          <h3 class="section-heading">Findings</h3>
+          <div id="findings"></div>
 
-        <div id="inr-block" hidden>
-          <h3 class="section-heading">INR context</h3>
-          <ul id="inr-context"></ul>
-        </div>
+          <div class="detail-columns">
+            <div>
+              <h3 class="section-heading">Patient profile</h3>
+              <table>
+                <tbody id="profile-rows"></tbody>
+              </table>
+            </div>
+            <div>
+              <h3 class="section-heading">Patient-specific modifiers</h3>
+              <ul id="modifiers"></ul>
 
-        <h3 class="section-heading">Missing information needed for confirmation</h3>
-        <ul id="missing"></ul>
+              <div id="inr-block" hidden>
+                <h3 class="section-heading">INR context</h3>
+                <ul id="inr-context"></ul>
+              </div>
 
-        <h3 class="section-heading">Boundary</h3>
-        <ul id="boundary"></ul>
-      </section>
+              <h3 class="section-heading">Missing information</h3>
+              <ul id="missing"></ul>
+            </div>
+          </div>
 
-      <!-- STEP 3 — grounded chat -->
-      <section id="chat-section" class="step" hidden>
-        <h2 class="step-title"><span class="step-number">3</span> Ask about this assessment</h2>
-        <p class="hint">
-          Answers are grounded in the assessment above. The assistant will not
-          advise starting, stopping or changing a medicine, and will say when a
-          question is outside what was assessed.
-        </p>
+          <details class="boundary-details">
+            <summary>Boundary and responsibility</summary>
+            <ul id="boundary"></ul>
+          </details>
+        </section>
 
-        <div class="chips" id="suggestions"></div>
-        <div class="chat-log" id="chat-log"></div>
+        <section id="chat-section" class="panel" hidden>
+          <h2 class="panel-title">
+            <span class="step-number">3</span> Ask about this assessment
+          </h2>
+          <p class="hint">
+            Answers are grounded in the assessment above. The assistant will not
+            advise starting, stopping or changing a medicine, and will say when a
+            question is outside what was assessed.
+          </p>
 
-        <form class="chat-input" id="chat-form">
-          <input
-            id="chat-question"
-            type="text"
-            maxlength="400"
-            autocomplete="off"
-            placeholder="e.g. Which finding is most urgent, and what is missing?"
-          />
-          <button type="submit" id="chat-send">Ask</button>
-        </form>
-        <p id="chat-status" class="status" role="status"></p>
-      </section>
-    </main>
+          <div class="chips" id="suggestions"></div>
+          <div class="chat-log" id="chat-log"></div>
+
+          <form class="chat-input" id="chat-form">
+            <input
+              id="chat-question"
+              type="text"
+              maxlength="400"
+              autocomplete="off"
+              placeholder="e.g. Which finding is most urgent?"
+            />
+            <button type="submit" id="chat-send">Ask</button>
+          </form>
+          <p id="chat-status" class="status" role="status"></p>
+        </section>
+      </main>
+    </div>
 
     <script src="/static/app.js"></script>
   </body>

@@ -61,11 +61,13 @@ function setStatus(target, message, isError) {
 
 function addMedicationRow(medication = {}) {
   const row = element("div", "med-row");
+  // Placement is the stylesheet's job; data-key drives both the grid areas
+  // and the profile that collectProfile() builds.
   const fields = [
-    { key: "name", placeholder: "Medication name", flex: "2 1 12rem" },
-    { key: "dose", placeholder: "Dose", flex: "1 1 6rem" },
-    { key: "frequency", placeholder: "Frequency", flex: "1 1 8rem" },
-    { key: "route", placeholder: "Route", flex: "1 1 6rem" },
+    { key: "name", placeholder: "Medication name" },
+    { key: "dose", placeholder: "Dose" },
+    { key: "frequency", placeholder: "Frequency" },
+    { key: "route", placeholder: "Route" },
   ];
 
   for (const field of fields) {
@@ -73,7 +75,6 @@ function addMedicationRow(medication = {}) {
     input.type = "text";
     input.placeholder = field.placeholder;
     input.dataset.key = field.key;
-    input.style.flex = field.flex;
     input.value = medication[field.key] || "";
     row.append(input);
   }
@@ -160,6 +161,7 @@ function fillSlots(profile) {
   const medications = profile.medications || [];
   if (!medications.length) addMedicationRow();
   for (const medication of medications) addMedicationRow(medication);
+  updateParamCount();
 }
 
 /* ---------- step 2: rendering the assessment ---------- */
@@ -199,7 +201,14 @@ function renderFinding(finding) {
   box.append(element("p", null, finding.reason));
   box.append(element("p", "label", "Clinician action"));
   box.append(element("p", null, finding.action));
-  box.append(element("p", "label", "Sources"));
+
+  // Sources are collapsed by default: they are long URLs that would otherwise
+  // dominate the card, but they stay one click away rather than hidden.
+  const sources = document.createElement("details");
+  const count = finding.sources.length;
+  sources.append(
+    element("summary", null, `${count} source${count === 1 ? "" : "s"}`)
+  );
 
   const list = document.createElement("ul");
   for (const url of finding.sources) {
@@ -212,7 +221,8 @@ function renderFinding(finding) {
     item.append(link);
     list.append(item);
   }
-  box.append(list);
+  sources.append(list);
+  box.append(sources);
   return box;
 }
 
@@ -262,8 +272,20 @@ function render(result) {
   inrBlock.hidden = assessment.inr_context.length === 0;
   if (assessment.inr_context.length) fillList("inr-context", assessment.inr_context, "");
 
+  document.getElementById("placeholder").hidden = true;
   results.hidden = false;
   chatSection.hidden = false;
+}
+
+/* Keeps the collapsed parameter section honest about what is set inside it. */
+function updateParamCount() {
+  let set = 0;
+  for (const slot of PARAM_SLOTS) {
+    if (document.getElementById(`slot-${slot.key}`).value.trim()) set += 1;
+  }
+  if (document.getElementById("slot-dialysis").value) set += 1;
+  document.getElementById("param-count").textContent =
+    set === 0 ? "none set" : `${set} set`;
 }
 
 /* ---------- step 3: grounded chat ---------- */
@@ -365,6 +387,10 @@ async function runReview(useMcp) {
     chatLog.replaceChildren();
     chatHistory.length = 0;
     setStatus(statusLine, `Review complete in ${mode} mode.`, false);
+    // On a narrow screen the output sits below the form; scroll it into view.
+    if (window.matchMedia("(max-width: 62rem)").matches) {
+      results.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   } catch (error) {
     setStatus(statusLine, `Could not reach the backend: ${error.message}`, true);
   } finally {
@@ -377,7 +403,10 @@ async function runReview(useMcp) {
 buildParamSlots();
 addMedicationRow();
 buildSuggestions();
+updateParamCount();
 
+document.getElementById("param-slots").addEventListener("input", updateParamCount);
+document.getElementById("slot-dialysis").addEventListener("change", updateParamCount);
 document.getElementById("add-med").addEventListener("click", () => addMedicationRow());
 document.getElementById("run").addEventListener("click", () => runReview(false));
 document.getElementById("load-mcp").addEventListener("click", () => runReview(true));
@@ -397,6 +426,7 @@ document.getElementById("clear").addEventListener("click", () => {
   fillSlots({ medications: [] });
   results.hidden = true;
   chatSection.hidden = true;
+  document.getElementById("placeholder").hidden = false;
   currentAssessment = null;
   setStatus(statusLine, "Cleared.", false);
 });

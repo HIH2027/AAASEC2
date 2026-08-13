@@ -1,8 +1,9 @@
 /* Medication Safety Review — clinical, quiet, legible.
+   Two columns on desktop: input stays put, output scrolls.
    Severity is the only place saturated colour is spent. */
 
 :root {
-  --bg: #f6f7f9;
+  --bg: #f4f6f8;
   --surface: #ffffff;
   --surface-2: #f1f3f6;
   --border: #dfe3e9;
@@ -19,13 +20,16 @@
   --contra-soft: #fdecea;
   --major: #9a5b00;
   --major-soft: #fdf1de;
-  --ok: #1c7c4a;
-  --ok-soft: #e6f4ec;
 
   --radius: 10px;
   --radius-sm: 7px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
   --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, monospace;
+
+  /* Height of the sticky header including the safety notice. Because the
+     notice never scrolls away, the input column's offset is the same at rest
+     and when stuck, so one value is correct in both states. */
+  --header-h: 158px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,8 +51,6 @@
     --contra-soft: #2c1719;
     --major: #f0b95c;
     --major-soft: #2a2113;
-    --ok: #6ee7a5;
-    --ok-soft: #12261c;
 
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
@@ -58,78 +60,121 @@
   box-sizing: border-box;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
 body {
   margin: 0;
-  padding: 2.5rem 1.25rem 4rem;
+  padding: 0 1.25rem 3rem;
   background: var(--bg);
   color: var(--text);
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-}
-
-main {
-  max-width: 74rem;
-  margin: 0 auto;
 }
 
 /* ---------- header ---------- */
 
-header {
-  margin-bottom: 1.25rem;
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 -1.25rem 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.header-inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 88rem;
+  margin: 0 auto;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  font-size: 1.3rem;
   font-weight: 660;
   letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin: 0.4rem 0 0;
-  max-width: 56ch;
+  margin: 0.2rem 0 0;
+  max-width: 62ch;
   color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.pill {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .notice {
-  display: flow-root;
-  padding: 0.9rem 1.1rem;
-  margin-bottom: 2rem;
+  max-width: 88rem;
+  margin: 0.7rem auto 0;
+  padding: 0.5rem 0.85rem;
   border: 1px solid var(--border);
   border-left: 3px solid var(--contra);
   border-radius: var(--radius-sm);
   background: var(--contra-soft);
-  color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
-.notice strong {
-  font-weight: 640;
+/* ---------- layout ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  max-width: 88rem;
+  margin: 0 auto;
 }
 
-/* ---------- step scaffolding ---------- */
+@media (min-width: 62rem) {
+  .layout {
+    grid-template-columns: 23rem minmax(0, 1fr);
+    align-items: start;
+  }
 
-.step {
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  .col-input {
+    position: sticky;
+    top: calc(var(--header-h) + 0.5rem);
+    max-height: calc(100vh - var(--header-h) - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.col-output {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.panel {
+  padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
-.step-title {
+.panel-title {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  margin: 0 0 1.25rem;
-  font-size: 1.05rem;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  font-size: 1rem;
   font-weight: 620;
   letter-spacing: -0.01em;
 }
@@ -137,18 +182,18 @@ h1 {
 .step-number {
   display: grid;
   place-items: center;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
 .section-heading {
-  margin: 1.75rem 0 0.65rem;
-  font-size: 0.72rem;
+  margin: 1.4rem 0 0.55rem;
+  font-size: 0.7rem;
   font-weight: 660;
   color: var(--faint);
   text-transform: uppercase;
@@ -156,49 +201,113 @@ h1 {
 }
 
 .hint {
-  margin: 0 0 0.9rem;
+  margin: 0 0 0.8rem;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.83rem;
+}
+
+/* ---------- placeholder ---------- */
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  min-height: 20rem;
+  text-align: center;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.placeholder p {
+  margin: 0;
+  max-width: 40ch;
+}
+
+.placeholder-mark {
+  font-size: 2rem;
+  opacity: 0.4;
 }
 
 /* ---------- forms ---------- */
 
 fieldset {
-  padding: 1rem 1.1rem 1.15rem;
-  margin: 0 0 1.1rem;
+  padding: 0.85rem 0.95rem 1rem;
+  margin: 0 0 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 
-legend {
-  padding: 0 0.4rem;
+legend,
+summary {
   color: var(--faint);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 660;
   text-transform: uppercase;
   letter-spacing: 0.09em;
 }
 
-fieldset > label {
+legend {
+  padding: 0 0.35rem;
+}
+
+details {
+  margin-bottom: 0.9rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+summary {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.2rem 0;
   cursor: pointer;
+  list-style-position: outside;
+}
+
+summary::marker {
+  color: var(--faint);
+}
+
+details[open] summary {
+  margin-bottom: 0.7rem;
+}
+
+.summary-hint {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mode-set label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.mode-set em {
+  color: var(--faint);
+  font-size: 0.78rem;
+  font-style: normal;
 }
 
 input[type="text"],
 input[type="number"],
 select {
   width: 100%;
-  padding: 0.5rem 0.65rem;
+  padding: 0.42rem 0.6rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.87rem;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 
@@ -208,7 +317,8 @@ input::placeholder {
 
 input:focus-visible,
 select:focus-visible,
-button:focus-visible {
+button:focus-visible,
+summary:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -221,50 +331,74 @@ input[type="radio"] {
 
 .slot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.55rem 0.7rem;
 }
 
 .slot {
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
+  gap: 0.2rem;
 }
 
 .slot-label {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 550;
 }
 
-.med-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+/* medication rows stay scannable even at eleven of them */
+
+.med-slots {
+  max-height: 13rem;
+  overflow-y: auto;
   margin-bottom: 0.5rem;
+  padding-right: 0.15rem;
 }
 
-.med-row input {
-  min-width: 0;
+/* Name and the remove control share the top line; dose, frequency and route
+   sit underneath, so a row stays readable in a 23rem sidebar. */
+.med-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.8rem;
+  gap: 0.3rem;
+  margin-bottom: 0.45rem;
+}
+
+.med-row input[data-key="name"] {
+  grid-area: 1 / 1 / 2 / 4;
+  font-weight: 550;
+}
+
+.med-row input[data-key="dose"] {
+  grid-area: 2 / 1 / 3 / 2;
+}
+
+.med-row input[data-key="frequency"] {
+  grid-area: 2 / 2 / 3 / 3;
+}
+
+.med-row input[data-key="route"] {
+  grid-area: 2 / 3 / 3 / 4;
 }
 
 .slot-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.1rem;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
 }
 
 /* ---------- buttons ---------- */
 
 button {
-  padding: 0.6rem 1.15rem;
+  padding: 0.55rem 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-ink);
   font: inherit;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: filter 0.12s, background 0.12s;
@@ -292,24 +426,45 @@ button.secondary:hover:not(:disabled) {
 }
 
 button.small {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.84rem;
+  padding: 0.32rem 0.65rem;
+  font-size: 0.81rem;
+}
+
+.primary-wide {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+}
+
+/* The input column scrolls internally once a long medication list is loaded,
+   so the action that leaves this column has to stay reachable. */
+.run-dock {
+  position: sticky;
+  bottom: -1.25rem;
+  margin: 0 -1.25rem -1.25rem;
+  padding: 0.85rem 1.25rem 1rem;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--surface);
+}
+
+.run-dock .status {
+  margin-bottom: 0;
 }
 
 .med-row button.small {
-  flex: 0 0 auto;
-  width: 2.1rem;
-  padding: 0.35rem 0;
+  grid-area: 1 / 4 / 2 / 5;
+  padding: 0.3rem 0;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1;
 }
 
 .status {
-  min-height: 1.4rem;
-  margin: 0.75rem 0 0;
+  min-height: 1.3rem;
+  margin: 0.6rem 0 0;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
 .status.error {
@@ -317,17 +472,17 @@ button.small {
   font-weight: 550;
 }
 
-/* ---------- summary cards ---------- */
+/* ---------- assessment ---------- */
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.9rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .card {
-  padding: 0.9rem 1rem;
+  padding: 0.7rem 0.85rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -336,7 +491,7 @@ button.small {
 .card-label {
   display: block;
   color: var(--faint);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -344,14 +499,14 @@ button.small {
 
 .card-value {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 1.35rem;
+  margin-top: 0.1rem;
+  font-size: 1.25rem;
   font-weight: 660;
   letter-spacing: -0.02em;
 }
 
 .summary {
-  padding: 1rem 1.15rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-sm);
@@ -359,8 +514,8 @@ button.small {
 }
 
 .summary h3 {
-  margin: 0 0 0.35rem;
-  font-size: 0.7rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.68rem;
   font-weight: 660;
   color: var(--muted);
   text-transform: uppercase;
@@ -369,10 +524,14 @@ button.small {
 
 .summary p {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.97rem;
 }
 
-/* ---------- profile table ---------- */
+.detail-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0 1.5rem;
+}
 
 table {
   width: 100%;
@@ -380,11 +539,11 @@ table {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 td {
-  padding: 0.45rem 0.85rem;
+  padding: 0.34rem 0.7rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -397,7 +556,7 @@ tbody tr:nth-child(odd) {
 }
 
 td.field {
-  width: 15rem;
+  width: 11rem;
   color: var(--muted);
 }
 
@@ -409,8 +568,8 @@ td.absent {
 /* ---------- findings ---------- */
 
 .finding {
-  padding: 1rem 1.15rem;
-  margin-bottom: 0.75rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.6rem;
   border: 1px solid var(--border);
   border-left: 3px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -430,21 +589,21 @@ td.absent {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.6rem;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
 }
 
 .finding-pair {
-  margin-right: 0.25rem;
-  font-size: 1rem;
+  margin-right: 0.2rem;
+  font-size: 0.97rem;
   font-weight: 640;
   letter-spacing: -0.01em;
 }
 
 .badge {
-  padding: 0.12rem 0.5rem;
+  padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.045em;
   white-space: nowrap;
@@ -475,9 +634,9 @@ td.absent {
 }
 
 .finding .label {
-  margin: 0.55rem 0 0.1rem;
+  margin: 0.45rem 0 0.05rem;
   color: var(--faint);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 660;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -485,40 +644,54 @@ td.absent {
 
 .finding p {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.89rem;
+}
+
+.finding details {
+  margin: 0.55rem 0 0;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+}
+
+.finding details summary {
+  font-size: 0.65rem;
 }
 
 .finding ul {
-  margin: 0.15rem 0 0;
-  padding-left: 1.1rem;
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
 }
 
 .finding a {
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   word-break: break-all;
 }
 
 ul {
   margin: 0;
-  padding-left: 1.15rem;
+  padding-left: 1.1rem;
 }
 
 li {
-  margin: 0.15rem 0;
-  font-size: 0.92rem;
+  margin: 0.12rem 0;
+  font-size: 0.88rem;
 }
 
 #missing li {
   color: var(--major);
 }
 
+.boundary-details {
+  margin-top: 1.4rem;
+}
+
 .empty {
-  padding: 1rem 1.15rem;
+  padding: 0.9rem 1rem;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.89rem;
 }
 
 /* ---------- chat ---------- */
@@ -526,17 +699,17 @@ li {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
 }
 
 .chip {
-  padding: 0.32rem 0.75rem;
+  padding: 0.28rem 0.7rem;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 0.83rem;
+  font-size: 0.81rem;
   font-weight: 500;
 }
 
@@ -550,21 +723,21 @@ li {
 .chat-log {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  max-height: 26rem;
+  gap: 0.6rem;
+  max-height: 24rem;
   overflow-y: auto;
-  padding: 0.25rem;
 }
 
-.chat-log:empty {
-  display: none;
+.chat-log:not(:empty) {
+  padding: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 .bubble {
-  max-width: min(46rem, 82%);
-  padding: 0.65rem 0.95rem;
+  max-width: min(44rem, 85%);
+  padding: 0.55rem 0.85rem;
   border-radius: 12px;
-  font-size: 0.93rem;
+  font-size: 0.9rem;
 }
 
 .bubble p {
@@ -587,32 +760,42 @@ li {
 
 .bubble-source {
   display: block;
-  margin-top: 0.35rem;
+  margin-top: 0.3rem;
   color: var(--faint);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 620;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
 
+.bubble.user .bubble-source {
+  color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
+}
+
 .chat-input {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 0.45rem;
 }
 
 .chat-input input {
   flex: 1 1 auto;
-  padding: 0.65rem 0.85rem;
+  padding: 0.6rem 0.8rem;
 }
+
+/* ---------- small screens ---------- */
 
 @media (max-width: 34rem) {
   body {
-    padding: 1.5rem 0.85rem 3rem;
+    padding: 0 0.75rem 2.5rem;
   }
 
-  .step {
-    padding: 1.1rem;
+  .panel {
+    padding: 1rem;
+  }
+
+  .subtitle,
+  .pill {
+    display: none;
   }
 
   td.field {
