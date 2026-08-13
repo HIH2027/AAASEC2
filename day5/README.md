@@ -53,9 +53,13 @@ day5/
 |       |-- client.py      # authenticated MCP client
 |       |-- cli.py         # command-line interface
 |       |-- models.py      # validated data contracts
-|       `-- server.py      # scope-protected MCP tool
+|       |-- server.py      # scope-protected MCP tool
+|       |-- web.py         # Starlette dashboard backend
+|       `-- static/        # dashboard HTML, CSS, and JavaScript
 `-- tests/
-    `-- test_analysis.py
+    |-- test_agent.py
+    |-- test_analysis.py
+    `-- test_web.py
 ```
 
 ## Architecture
@@ -63,6 +67,9 @@ day5/
 ```mermaid
 flowchart LR
     U[Lab coordinator] --> C[CLI agent]
+    U --> W[Browser dashboard]
+    W -->|POST /api/analyze| B[Starlette backend]
+    B --> C
     C -->|Bearer token| M[Authenticated FastMCP service]
     M -->|Protected inventory| V[Schema and injection guardrail]
     V --> A[Deterministic value and stock analysis]
@@ -81,6 +88,7 @@ flowchart LR
 | Model access | OpenRouter | Choice of compatible models through one API |
 | Protected tool | FastMCP | Standard tool protocol with scope-based authorization |
 | Validation | Pydantic | Strict contracts before untrusted data reaches the model |
+| Dashboard | Starlette and plain HTML, CSS, JavaScript | Server-side agent execution with no build step and no browser-side secrets |
 | Observability | LangSmith | Traces the live AI recommendation run |
 | Tests | pytest | Verifies calculations, validation, and injection rejection |
 
@@ -129,6 +137,13 @@ Run without consuming an LLM request:
 .\.venv\Scripts\python.exe -m secure_inventory.cli --offline
 ```
 
+Open the browser dashboard in terminal 3, then visit
+<http://127.0.0.1:8080>:
+
+```powershell
+.\.venv\Scripts\python.exe -m secure_inventory.web
+```
+
 Run tests:
 
 ```powershell
@@ -154,6 +169,33 @@ Grand total: 3890 SAR
 Recommendation: Restock TS101 iron first because quantity is below 5.
 ```
 
+## Browser Dashboard
+
+The dashboard is a small Starlette application that serves static files and runs
+the same agent server-side. The MCP service must already be running.
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/` | GET | Dashboard page |
+| `/health` | GET | Liveness check, returns `{"status": "ok"}` |
+| `/api/analyze` | POST | Runs the agent and returns the validated analysis JSON |
+
+`POST /api/analyze` accepts `{"mode": "offline"}` or `{"mode": "live"}` and
+defaults to `offline`, so opening the page never spends an LLM request. The page
+shows every inventory row, its stock status, the grand total, and the restock
+recommendation.
+
+The browser only ever sends a mode and receives validated analysis output. The
+OpenRouter key and the MCP bearer token stay in the server process and are never
+placed in the page, in JavaScript, or in an API response. Agent failures are
+returned as a generic error so that credentials cannot leak through an exception
+message, and item names are rendered with `textContent` so untrusted inventory
+data cannot become markup.
+
+Note that `http://127.0.0.1:8010/mcp` is a machine-to-machine endpoint. A browser
+returns `401` there, which is correct. The dashboard on port 8080 is the only
+page meant to be opened.
+
 ## Security and Prompt Injection
 
 Inventory values are treated as untrusted data. The agent validates their type,
@@ -167,7 +209,7 @@ remain outside the LLM, and credentials are never included in its prompt. See
 Verified on August 13, 2026:
 
 ```text
-5 passed in 4.20s
+13 passed
 
 FAIL no token: HTTPStatusError
 FAIL wrong token: HTTPStatusError
@@ -180,6 +222,10 @@ The live recommendation call was recorded successfully in LangSmith project
 
 ![Successful LangSmith capstone trace](assets/langsmith-capstone-trace.png)
 
+The dashboard was checked in a browser at <http://127.0.0.1:8080> against the
+running MCP service. Both modes returned a grand total of 3890 SAR with
+`TS101 iron` flagged as low stock.
+
 ## Limitations
 
 - Static tokens are suitable only for this local course demonstration.
@@ -187,7 +233,8 @@ The live recommendation call was recorded successfully in LangSmith project
 - Prompt-injection screening is deliberately small and should complement, not
   replace, isolation and least-privilege architecture.
 - The live recommendation depends on OpenRouter availability and account limits.
-- There is no user interface beyond the command line.
+- The dashboard binds to localhost and has no sign-in of its own, so anyone with
+  access to the machine can use it.
 
 ## Future Work
 
@@ -195,7 +242,7 @@ The live recommendation call was recorded successfully in LangSmith project
 - Replace static tokens with OIDC and short-lived credentials.
 - Add reorder thresholds per item and historical consumption forecasts.
 - Add evaluation datasets and alert-quality metrics in LangSmith.
-- Provide a small authenticated web dashboard.
+- Add sign-in and per-user roles to the web dashboard.
 
 ## Team
 

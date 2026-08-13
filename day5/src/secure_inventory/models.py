@@ -25,3 +25,11 @@ class InventoryAnalysis(BaseModel):
     items: list[AnalyzedItem]
     grand_total_sar: int
     low_stock_items: list[str]
+
+
+class AgentResult(BaseModel):
+    """Structured workflow output shared by the CLI and the web dashboard."""
+
+    analysis: InventoryAnalysis
+    recommendation: str
+    mode: str

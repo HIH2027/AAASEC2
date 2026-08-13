@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 
 from .analysis import analyze_inventory
 from .client import fetch_inventory
-from .models import InventoryAnalysis
+from .models import AgentResult, InventoryAnalysis
 
 load_dotenv()
 
@@ -90,8 +90,8 @@ def format_report(analysis: InventoryAnalysis, recommendation: str) -> str:
     return "\n".join(lines)
 
 
-def run_agent(*, offline: bool = False) -> str:
-    """Run the complete protected inventory workflow."""
+def run_agent_result(*, offline: bool = False) -> AgentResult:
+    """Run the protected workflow and return the structured analysis."""
     raw_inventory = fetch_inventory()
     analysis = analyze_inventory(raw_inventory)
     recommendation = (
@@ -99,4 +99,14 @@ def run_agent(*, offline: bool = False) -> str:
         if offline
         else _ai_recommendation(analysis)
     )
-    return format_report(analysis, recommendation)
+    return AgentResult(
+        analysis=analysis,
+        recommendation=recommendation,
+        mode="offline" if offline else "live",
+    )
+
+
+def run_agent(*, offline: bool = False) -> str:
+    """Run the complete protected inventory workflow and format a text brief."""
+    result = run_agent_result(offline=offline)
+    return format_report(result.analysis, result.recommendation)
