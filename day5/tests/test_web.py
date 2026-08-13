@@ -219,3 +219,101 @@ def test_chat_rejects_a_bad_history_type(client) -> None:
         },
     )
     assert response.status_code == 400
+
+
+# ---------- upload extraction route ----------
+
+NOTE = b"""Patient name: Ahmed
+MRN 4482910
+Age: 78
+INR 1.6
+- Warfarin 5 mg once daily
+- Ketoconazole 200 mg once daily
+- Simvastatin 40 mg at bedtime
+"""
+
+
+def test_extract_fills_slots_from_a_document(client) -> None:
+    response = client.post(
+        "/api/extract", files={"file": ("note.txt", NOTE, "text/plain")}
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    names = {m["name"] for m in payload["profile"]["medications"]}
+    assert {"warfarin", "ketoconazole", "simvastatin"} <= names
+    assert payload["profile"]["age"] == 78
+
+
+def test_extract_response_carries_no_identifier(client) -> None:
+    body = client.post(
+        "/api/extract", files={"file": ("note.txt", NOTE, "text/plain")}
+    ).json()
+    blob = str(body["profile"]).lower()
+    assert "ahmed" not in blob
+    assert "4482910" not in blob
+
+
+def test_extract_rejects_unsupported_type(client) -> None:
+    response = client.post(
+        "/api/extract", files={"file": ("x.pdf", b"%PDF", "application/pdf")}
+    )
+    assert response.status_code == 422
+    assert "Unsupported file type" in response.json()["error"]
+
+
+def test_extract_requires_a_file(client) -> None:
+    response = client.post("/api/extract", data={"nofile": "1"})
+    assert response.status_code == 400
+
+
+def test_uploaded_then_analysed_profile_produces_findings(client, monkeypatch) -> None:
+    from medication_safety import agent as agent_module
+
+    monkeypatch.setattr(
+        web,
+        "analyze_profile_result",
+        lambda profile, *, offline=False: agent_module.analyze_profile_result(
+            profile, offline=True
+        ),
+    )
+    profile = client.post(
+        "/api/extract", files={"file": ("note.txt", NOTE, "text/plain")}
+    ).json()["profile"]
+
+    response = client.post("/api/analyze", json={"mode": "offline", "profile": profile})
+    assert response.status_code == 200
+    assert response.json()["assessment"]["findings"][0]["rule_id"] == "PAIR-01"
+
+
+def test_patient_description_is_shown_but_screened(client, monkeypatch) -> None:
+    from medication_safety import agent as agent_module
+
+    monkeypatch.setattr(web, "analyze_profile_result", agent_module.analyze_profile_result)
+
+    ok = client.post(
+        "/api/analyze",
+        json={
+            "mode": "offline",
+            "profile": {
+                "patient_description": "Elderly patient on long-term anticoagulation.",
+                "medications": [{"name": "Warfarin"}, {"name": "Aspirin"}],
+            },
+        },
+    )
+    assert ok.status_code == 200
+    summary = ok.json()["assessment"]["profile_summary"]
+    assert summary["Description"] == "Elderly patient on long-term anticoagulation."
+
+    rejected = client.post(
+        "/api/analyze",
+        json={
+            "mode": "offline",
+            "profile": {
+                "patient_description": "Patient name: Ahmed, MRN 4482910",
+                "medications": [{"name": "Warfarin"}],
+            },
+        },
+    )
+    assert rejected.status_code == 422
+    assert "de-identified" in rejected.json()["error"]

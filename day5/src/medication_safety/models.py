@@ -65,6 +65,11 @@ class PatientProfile(BaseModel):
 
     medications: list[Medication] = Field(min_length=1, max_length=50)
 
+    # Free-text clinical context. Screened for identifiers like every other
+    # field, and deliberately never sent to the model: it is narrative the
+    # deterministic layer cannot verify.
+    patient_description: str | None = Field(default=None, max_length=600)
+
     age: int | None = Field(default=None, ge=0, le=120)
     warfarin_indication: str | None = Field(default=None, max_length=80)
     dvt_timing: str | None = Field(default=None, max_length=80)

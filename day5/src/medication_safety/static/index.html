@@ -16,7 +16,13 @@
             The agent runs on the server; keys and MCP tokens never reach this page.
           </p>
         </div>
-        <span class="pill" id="rule-pill">7 verified rules</span>
+        <div class="header-actions">
+          <span class="pill" id="rule-pill">7 verified rules</span>
+          <button id="theme-toggle" class="icon-button" type="button"
+                  title="Switch between light and dark" aria-label="Switch theme">
+            <span id="theme-icon">&#9789;</span>
+          </button>
+        </div>
       </div>
 
       <!-- Kept inside the sticky header: a safety notice that scrolls away is
@@ -36,11 +42,34 @@
             <span class="step-number">1</span> Patient input
           </h2>
 
+          <div class="dropzone" id="dropzone" tabindex="0" role="button"
+               aria-label="Upload a medication list to fill the slots">
+            <span class="dropzone-mark">&#8682;</span>
+            <span class="dropzone-title">Upload a medication list</span>
+            <span class="dropzone-hint">
+              Drop a file or click &mdash; .txt .md .csv .json or an image
+            </span>
+            <input type="file" id="file-input" hidden
+                   accept=".txt,.md,.csv,.json,image/*" />
+          </div>
+
+          <div id="extract-report" class="extract-report" hidden></div>
+
           <div class="slot-actions">
             <button id="load-sample" class="secondary small">Sample profile</button>
             <button id="load-mcp" class="secondary small">Fetch over MCP</button>
             <button id="clear" class="secondary small">Clear</button>
           </div>
+
+          <fieldset>
+            <legend>Patient description</legend>
+            <textarea id="slot-patient_description" rows="3" maxlength="600"
+              placeholder="Optional clinical context, e.g. 78-year-old on long-term anticoagulation, reduced renal function. No identifiers."></textarea>
+            <p class="field-note">
+              De-identified context only. It is shown in the review but never
+              sent to the model.
+            </p>
+          </fieldset>
 
           <fieldset>
             <legend>Medications</legend>

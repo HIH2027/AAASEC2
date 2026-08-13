@@ -134,6 +134,9 @@ function collectProfile() {
   const dialysis = document.getElementById("slot-dialysis").value;
   if (dialysis) profile.dialysis = dialysis === "true";
 
+  const description = document.getElementById("slot-patient_description").value.trim();
+  if (description) profile.patient_description = description;
+
   const medications = [];
   for (const row of document.querySelectorAll(".med-row")) {
     const medication = {};
@@ -157,11 +160,113 @@ function fillSlots(profile) {
   document.getElementById("slot-dialysis").value =
     dialysis === true ? "true" : dialysis === false ? "false" : "";
 
+  const description = profile.patient_description;
+  document.getElementById("slot-patient_description").value =
+    description && description !== "Not provided" ? description : "";
+
   document.getElementById("med-slots").replaceChildren();
   const medications = profile.medications || [];
   if (!medications.length) addMedicationRow();
   for (const medication of medications) addMedicationRow(medication);
   updateParamCount();
+}
+
+/* ---------- upload: fill the slots from a document ---------- */
+
+function renderExtractReport(result) {
+  const box = document.getElementById("extract-report");
+  box.replaceChildren();
+  box.hidden = false;
+  box.classList.toggle(
+    "warn",
+    result.unrecognised.length > 0 || result.recognised.length === 0
+  );
+
+  box.append(element("h4", null, `Read from ${result.source}`));
+
+  const medications = (result.profile.medications || []).length;
+  box.append(
+    element(
+      "p",
+      null,
+      `${medications} medication(s) and ` +
+        `${result.recognised.length - medications} parameter(s) filled in. ` +
+        "Check them before running."
+    )
+  );
+
+  if (result.unrecognised.length) {
+    box.append(
+      element("p", "flag", "Not recognised — add by hand if they are medicines:")
+    );
+    const list = document.createElement("ul");
+    for (const line of result.unrecognised.slice(0, 6)) {
+      list.append(element("li", "flag", line));
+    }
+    box.append(list);
+  }
+
+  for (const note of result.notes) {
+    box.append(element("p", null, note));
+  }
+}
+
+async function uploadFile(file) {
+  if (!file) return;
+
+  const dropzone = document.getElementById("dropzone");
+  dropzone.classList.add("busy");
+  setStatus(statusLine, `Reading ${file.name}...`, false);
+
+  const body = new FormData();
+  body.append("file", file);
+
+  try {
+    const response = await fetch("/api/extract", { method: "POST", body });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      document.getElementById("extract-report").hidden = true;
+      setStatus(statusLine, payload.error || `Upload failed (${response.status})`, true);
+      return;
+    }
+
+    fillSlots(payload.profile);
+    renderExtractReport(payload);
+    // Open the parameter disclosure when the upload actually filled some.
+    if (payload.recognised.length > (payload.profile.medications || []).length) {
+      document.getElementById("param-details").open = true;
+    }
+    setStatus(statusLine, "Slots filled from the upload. Review, then run.", false);
+  } catch (error) {
+    setStatus(statusLine, `Could not upload: ${error.message}`, true);
+  } finally {
+    dropzone.classList.remove("busy");
+  }
+}
+
+/* ---------- theme ---------- */
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("theme-icon").textContent =
+    theme === "dark" ? "☀" : "☽";
+  try {
+    localStorage.setItem("medsafety-theme", theme);
+  } catch (error) {
+    // Private browsing can refuse storage; the toggle still works this session.
+  }
+}
+
+function initTheme() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("medsafety-theme");
+  } catch (error) {
+    stored = null;
+  }
+  // Light by default: this is a document to read, not a code editor.
+  applyTheme(stored === "dark" ? "dark" : "light");
 }
 
 /* ---------- step 2: rendering the assessment ---------- */
@@ -400,10 +505,46 @@ async function runReview(useMcp) {
 
 /* ---------- wiring ---------- */
 
+initTheme();
 buildParamSlots();
 addMedicationRow();
 buildSuggestions();
 updateParamCount();
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("file-input");
+
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    fileInput.click();
+  }
+});
+fileInput.addEventListener("change", () => {
+  uploadFile(fileInput.files[0]);
+  fileInput.value = "";
+});
+
+for (const name of ["dragenter", "dragover"]) {
+  dropzone.addEventListener(name, (event) => {
+    event.preventDefault();
+    dropzone.classList.add("dragging");
+  });
+}
+for (const name of ["dragleave", "drop"]) {
+  dropzone.addEventListener(name, (event) => {
+    event.preventDefault();
+    dropzone.classList.remove("dragging");
+  });
+}
+dropzone.addEventListener("drop", (event) => {
+  uploadFile(event.dataTransfer.files[0]);
+});
+
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
 
 document.getElementById("param-slots").addEventListener("input", updateParamCount);
 document.getElementById("slot-dialysis").addEventListener("change", updateParamCount);
@@ -427,6 +568,7 @@ document.getElementById("clear").addEventListener("click", () => {
   results.hidden = true;
   chatSection.hidden = true;
   document.getElementById("placeholder").hidden = false;
+  document.getElementById("extract-report").hidden = true;
   currentAssessment = null;
   setStatus(statusLine, "Cleared.", false);
 });

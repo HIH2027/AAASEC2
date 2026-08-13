@@ -57,6 +57,7 @@ BOUNDARY = (
 )
 
 PROFILE_LABELS = {
+    "patient_description": "Description",
     "age": "Age",
     "warfarin_indication": "Indication for warfarin",
     "dvt_timing": "DVT timing",
@@ -177,6 +178,7 @@ def assess_profile(raw_profile: dict[str, Any]) -> SafetyAssessment:
             if extra:
                 _scan_untrusted_text(extra)
     for free_text in (
+        profile.patient_description,
         profile.warfarin_indication,
         profile.dvt_timing,
         profile.liver_status,

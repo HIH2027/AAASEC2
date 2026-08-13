@@ -3,23 +3,23 @@
    Severity is the only place saturated colour is spent. */
 
 :root {
-  --bg: #f4f6f8;
+  --bg: #f7f8fa;
   --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --border: #dfe3e9;
-  --border-strong: #c6ccd6;
-  --text: #14181f;
-  --muted: #5d6673;
-  --faint: #8b93a1;
+  --surface-2: #f4f6f9;
+  --border: #e4e8ee;
+  --border-strong: #cfd6e0;
+  --text: #1a1f29;
+  --muted: #5a6472;
+  --faint: #8892a2;
 
-  --accent: #1f6feb;
+  --accent: #2563c9;
   --accent-ink: #ffffff;
-  --accent-soft: #e8f0fe;
+  --accent-soft: #eaf1fd;
 
-  --contra: #c0342b;
-  --contra-soft: #fdecea;
-  --major: #9a5b00;
-  --major-soft: #fdf1de;
+  --contra: #b3352c;
+  --contra-soft: #fdeeec;
+  --major: #8a5410;
+  --major-soft: #fdf3e3;
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -32,28 +32,50 @@
   --header-h: 158px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1117;
-    --surface: #161b23;
-    --surface-2: #1c222c;
-    --border: #2a313c;
-    --border-strong: #3a424f;
-    --text: #e6e9ee;
-    --muted: #9aa4b2;
-    --faint: #6e7887;
+/* Dark is opt-in via the toggle. The page defaults to light because the
+   system preference was producing a near-black clinical page. */
+:root[data-theme="dark"] {
+  --bg: #1b2027;
+  --surface: #232932;
+  --surface-2: #2a313b;
+  --border: #39414d;
+  --border-strong: #4b5563;
+  --text: #eaedf2;
+  --muted: #a8b1be;
+  --faint: #7f8a99;
 
-    --accent: #4c8dff;
-    --accent-ink: #0b1220;
-    --accent-soft: #16233a;
+  --accent: #6ba3ff;
+  --accent-ink: #10192a;
+  --accent-soft: #26374f;
 
-    --contra: #ff8a80;
-    --contra-soft: #2c1719;
-    --major: #f0b95c;
-    --major-soft: #2a2113;
+  --contra: #ff9b91;
+  --contra-soft: #3a2523;
+  --major: #f2c274;
+  --major-soft: #372c18;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  }
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Thmanyya is picked up automatically if it is installed on the machine, or
+   if its files are dropped into static/fonts/. Nothing is fetched from the
+   network, so the page works offline and ships no third-party font. */
+@font-face {
+  font-family: "Thmanyya";
+  src:
+    local("Thmanyya"),
+    local("Thmanyya Regular"),
+    url("/static/fonts/Thmanyya-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Thmanyya";
+  src:
+    local("Thmanyya Bold"),
+    url("/static/fonts/Thmanyya-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
 }
 
 * {
@@ -65,7 +87,8 @@ body {
   padding: 0 1.25rem 3rem;
   background: var(--bg);
   color: var(--text);
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Thmanyya", "Dubai", "Inter", "Segoe UI", system-ui,
+    -apple-system, sans-serif;
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -105,6 +128,33 @@ h1 {
   max-width: 62ch;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.icon-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  filter: none;
 }
 
 .pill {
@@ -299,7 +349,8 @@ details[open] summary {
 
 input[type="text"],
 input[type="number"],
-select {
+select,
+textarea {
   width: 100%;
   padding: 0.42rem 0.6rem;
   border: 1px solid var(--border-strong);
@@ -315,8 +366,21 @@ input::placeholder {
   color: var(--faint);
 }
 
+textarea {
+  min-height: 4.2rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field-note {
+  margin: 0.35rem 0 0;
+  color: var(--faint);
+  font-size: 0.74rem;
+}
+
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 button:focus-visible,
 summary:focus-visible {
   outline: none;
@@ -387,6 +451,86 @@ input[type="radio"] {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 0.9rem;
+}
+
+/* ---------- upload ---------- */
+
+.dropzone {
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  padding: 1.1rem 1rem;
+  margin-bottom: 0.75rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible,
+.dropzone.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.dropzone.busy {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.dropzone-mark {
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.dropzone-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.dropzone-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.extract-report {
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.82rem;
+}
+
+.extract-report.warn {
+  border-left-color: var(--major);
+}
+
+.extract-report h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 660;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.extract-report ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+}
+
+.extract-report li {
+  font-size: 0.79rem;
+}
+
+.extract-report .flag {
+  color: var(--major);
 }
 
 /* ---------- buttons ---------- */

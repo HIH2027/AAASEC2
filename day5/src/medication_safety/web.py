@@ -15,6 +15,7 @@ from starlette.staticfiles import StaticFiles
 
 from .agent import analyze_profile_result, run_agent_result
 from .chat import answer_question
+from .extraction import MAX_UPLOAD_BYTES, extract_upload
 from .models import SafetyAssessment
 from .rules import TOTAL_RULE_COUNT
 from .server import SAMPLE_PROFILE
@@ -76,6 +77,43 @@ async def sample(request: Request) -> JSONResponse:
     return JSONResponse(SAMPLE_PROFILE)
 
 
+async def extract(request: Request) -> JSONResponse:
+    """Read an uploaded document or image into the input slots.
+
+    Nothing is analysed here. The operator confirms the extracted rows before
+    running the review, which keeps a human between a scanned page and a
+    clinical finding.
+    """
+    try:
+        form = await request.form(max_files=1, max_fields=4)
+    except Exception:  # noqa: BLE001 - malformed multipart bodies vary by client
+        return JSONResponse({"error": "Could not read the upload"}, status_code=400)
+
+    upload = form.get("file")
+    if upload is None or not hasattr(upload, "read"):
+        return JSONResponse({"error": "No file was attached"}, status_code=400)
+
+    data = await upload.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": "File is larger than the 2 MB limit"}, 413)
+
+    try:
+        result = await run_in_threadpool(
+            extract_upload,
+            upload.filename or "",
+            upload.content_type or "",
+            data,
+        )
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=422)
+    except Exception as exc:  # noqa: BLE001 - surface a safe, generic failure
+        return JSONResponse(
+            {"error": f"{type(exc).__name__}: extraction failed"}, status_code=502
+        )
+
+    return JSONResponse(result.model_dump())
+
+
 async def chat(request: Request) -> JSONResponse:
     """Answer a follow-up question grounded in an assessment from /api/analyze."""
     try:
@@ -128,6 +166,7 @@ app = Starlette(
         Route("/health", health),
         Route("/api/sample", sample),
         Route("/api/analyze", analyze, methods=["POST"]),
+        Route("/api/extract", extract, methods=["POST"]),
         Route("/api/chat", chat, methods=["POST"]),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]
