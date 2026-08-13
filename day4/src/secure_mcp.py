@@ -1,22 +1,63 @@
 """
-DAY 4 — Authenticated MCP server.
+DAY 4 - Authenticated MCP server.
 
 READ FIRST:  ../02-mcp-auth.md
-
-Do not continue until: no token -> 401, student token -> public tool
-works, admin token -> protected tool works.
-
-TODO:
-  1. StaticTokenVerifier with two tokens (from .env):
-       student -> scopes ["read:public"]
-       admin   -> scopes ["read:public", "read:internal"]
-  2. mcp = FastMCP("...", auth=verifier)
-  3. get_server_time()  — plain @mcp.tool (any valid token)
-  4. get_internal_report() — @mcp.tool(auth=require_scopes("read:internal"))
-  5. __main__: mcp.run(transport="http", host="0.0.0.0", port=8002)
-
-LATER (04-challenge.md): you'll add ONE more protected tool here that
-serves data you invent — same decorator, same scope, different data.
 """
 
-# TODO
+import os
+from datetime import datetime, timezone
+
+from dotenv import load_dotenv
+from fastmcp import FastMCP
+from fastmcp.server.auth import require_scopes
+from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
+
+load_dotenv()
+
+verifier = StaticTokenVerifier(
+    tokens={
+        os.getenv("MCP_STUDENT_TOKEN", "student-secret-token"): {
+            "client_id": "student",
+            "scopes": ["read:public"],
+        },
+        os.getenv("MCP_ADMIN_TOKEN", "admin-secret-token"): {
+            "client_id": "admin",
+            "scopes": ["read:public", "read:internal"],
+        },
+    }
+)
+
+mcp = FastMCP("AAASEC2 Secure Tools", auth=verifier)
+
+
+@mcp.tool
+def get_server_time() -> str:
+    """Current UTC time. Public: any valid token can call this."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+@mcp.tool(auth=require_scopes("read:internal"))
+def get_internal_report() -> dict:
+    """Quarterly numbers. Protected: requires the read:internal scope."""
+    return {
+        "quarter": "Q3-2026",
+        "revenue_sar": [412_000, 385_000, 505_000],
+        "costs_sar": [298_000, 310_000, 342_000],
+        "note": "internal only - do not redistribute",
+    }
+
+
+@mcp.tool(auth=require_scopes("read:internal"))
+def get_lab_inventory() -> dict:
+    """Lab stock. Protected: challenge dataset requiring read:internal."""
+    return {
+        "items": [
+            {"name": "TS101 iron", "qty": 4, "unit_cost_sar": 320},
+            {"name": "ESC 45A", "qty": 12, "unit_cost_sar": 95},
+            {"name": "LiPo 4S", "qty": 7, "unit_cost_sar": 210},
+        ]
+    }
+
+
+if __name__ == "__main__":
+    mcp.run(transport="http", host="0.0.0.0", port=8002)
