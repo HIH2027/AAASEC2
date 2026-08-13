@@ -29,6 +29,7 @@ from .rules import BLEEDING_RISK_WITH_WARFARIN, BRADYCARDIA_TRIPLE, PAIR_RULES
 
 TEXT_SUFFIXES = {".txt", ".md", ".csv", ".json"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+DOCUMENT_SUFFIXES = {".pdf", ".docx"}
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_LINES = 500
 
@@ -312,6 +313,72 @@ def extract_from_json(data: str) -> ExtractionResult:
     )
 
 
+def extract_from_pdf(data: bytes) -> ExtractionResult:
+    """Read the text layer of a PDF, then apply the usual whitelist."""
+    from pypdf import PdfReader
+
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted:
+            # An empty password unlocks many "protected" clinical exports.
+            try:
+                reader.decrypt("")
+            except Exception as exc:  # noqa: BLE001 - pypdf raises several types
+                raise ValueError("This PDF is password protected") from exc
+        pages = [page.extract_text() or "" for page in reader.pages[:50]]
+    except ValueError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - a malformed PDF fails many ways
+        raise ValueError(f"Could not read this PDF: {type(exc).__name__}") from exc
+
+    text = "\n".join(pages)
+    if not text.strip():
+        raise ValueError(
+            "This PDF has no text layer, so it is probably a scan. Upload it as "
+            "an image instead, or export a text version."
+        )
+
+    result = extract_from_text(text, source="pdf")
+    result.notes.insert(0, f"Read the text layer of {len(pages)} page(s).")
+    return result
+
+
+def extract_from_docx(data: bytes) -> ExtractionResult:
+    """Read a Word document, including table cells."""
+    import docx
+
+    try:
+        document = docx.Document(io.BytesIO(data))
+    except Exception as exc:  # noqa: BLE001 - python-docx raises several types
+        raise ValueError(
+            f"Could not read this Word document: {type(exc).__name__}. "
+            "Only .docx is supported, not the older .doc format."
+        ) from exc
+
+    lines = [paragraph.text for paragraph in document.paragraphs]
+
+    # Medication lists are very often tables, and paragraph text alone misses
+    # every cell, so walk the tables too.
+    tables = 0
+    for table in document.tables:
+        tables += 1
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells]
+            # Join the row so "Warfarin | 5 mg | once daily" reads as one line.
+            joined = " ".join(part for part in cells if part)
+            if joined:
+                lines.append(joined)
+
+    text = "\n".join(lines)
+    if not text.strip():
+        raise ValueError("This Word document contains no readable text")
+
+    result = extract_from_text(text, source="word")
+    if tables:
+        result.notes.insert(0, f"Read {tables} table(s) as well as the body text.")
+    return result
+
+
 def extract_from_image(data: bytes, media_type: str) -> ExtractionResult:
     """Read a photographed or scanned list through a vision model.
 
@@ -396,9 +463,21 @@ def extract_upload(filename: str, media_type: str, data: bytes) -> ExtractionRes
     if suffix in IMAGE_SUFFIXES or media_type.startswith("image/"):
         return extract_from_image(data, media_type or "image/png")
 
+    if suffix == ".pdf" or media_type == "application/pdf":
+        return extract_from_pdf(data)
+
+    if suffix == ".docx" or media_type.endswith("wordprocessingml.document"):
+        return extract_from_docx(data)
+
+    if suffix == ".doc":
+        raise ValueError(
+            "The legacy .doc format is not supported. Save it as .docx or PDF."
+        )
+
     if suffix not in TEXT_SUFFIXES:
         raise ValueError(
-            "Unsupported file type. Upload .txt, .md, .csv, .json or an image."
+            "Unsupported file type. Upload a PDF, Word .docx, .txt, .md, .csv, "
+            ".json or an image."
         )
 
     try:

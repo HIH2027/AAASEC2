@@ -245,6 +245,45 @@ async function uploadFile(file) {
   }
 }
 
+/* ---------- welcome ---------- */
+
+const WELCOME_KEY = "medsafety-seen-welcome";
+
+function closeWelcome() {
+  document.getElementById("welcome").hidden = true;
+  try {
+    localStorage.setItem(WELCOME_KEY, "1");
+  } catch (error) {
+    // Storage can be refused; the greeting simply shows again next visit.
+  }
+}
+
+function initWelcome() {
+  let seen = null;
+  try {
+    seen = localStorage.getItem(WELCOME_KEY);
+  } catch (error) {
+    seen = null;
+  }
+  if (seen) return;
+
+  const backdrop = document.getElementById("welcome");
+  backdrop.hidden = false;
+  document.getElementById("welcome-start").focus();
+
+  document.getElementById("welcome-start").addEventListener("click", closeWelcome);
+  document.getElementById("welcome-sample").addEventListener("click", () => {
+    closeWelcome();
+    document.getElementById("load-sample").click();
+  });
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) closeWelcome();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !backdrop.hidden) closeWelcome();
+  });
+}
+
 /* ---------- theme ---------- */
 
 function applyTheme(theme) {
@@ -506,6 +545,7 @@ async function runReview(useMcp) {
 /* ---------- wiring ---------- */
 
 initTheme();
+initWelcome();
 buildParamSlots();
 addMedicationRow();
 buildSuggestions();

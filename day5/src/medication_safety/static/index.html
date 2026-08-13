@@ -7,6 +7,55 @@
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
+    <!-- Shown once on a first visit, then remembered. -->
+    <div class="welcome-backdrop" id="welcome" hidden>
+      <div class="welcome" role="dialog" aria-modal="true"
+           aria-labelledby="welcome-title">
+        <p class="welcome-eyebrow">SDAIA Academy &middot; Capstone</p>
+        <h2 id="welcome-title">Catch the interaction before it reaches the patient.</h2>
+        <p class="welcome-lede">
+          A pharmacist-facing check that separates what the label says from what
+          <em>this</em> patient can tolerate &mdash; and never quietly treats a
+          missing value as a normal one.
+        </p>
+
+        <ul class="welcome-points">
+          <li>
+            <strong>Seven verified rules, every one sourced.</strong>
+            Findings are ranked by severity and bound to product labelling, so
+            you can check the claim rather than trust it.
+          </li>
+          <li>
+            <strong>Rules decide, the model only phrases.</strong>
+            No language model determines whether a risk exists, how severe it
+            is, or how it ranks. Its wording is validated before you see it.
+          </li>
+          <li>
+            <strong>Missing data is named, not assumed.</strong>
+            Absent parameters are listed as &ldquo;Not provided&rdquo; and
+            collected into a request list instead of being read as normal.
+          </li>
+          <li>
+            <strong>Upload a list, or type it.</strong>
+            PDF, Word, CSV, JSON, plain text or a photo. Identifiers in the
+            document are discarded at the door.
+          </li>
+        </ul>
+
+        <p class="welcome-note">
+          Educational and research prototype. Not an authorised medical device
+          and not for clinical use. It supports, and does not replace, a
+          licensed pharmacist and the treating prescriber.
+          <strong>Enter de-identified data only.</strong>
+        </p>
+
+        <div class="welcome-actions">
+          <button id="welcome-start" class="primary-wide">Start a review</button>
+          <button id="welcome-sample" class="secondary">Try the sample profile</button>
+        </div>
+      </div>
+    </div>
+
     <header class="page-header">
       <div class="header-inner">
         <div>
@@ -47,10 +96,10 @@
             <span class="dropzone-mark">&#8682;</span>
             <span class="dropzone-title">Upload a medication list</span>
             <span class="dropzone-hint">
-              Drop a file or click &mdash; .txt .md .csv .json or an image
+              Drop a file or click &mdash; PDF, Word, CSV, JSON, text or a photo
             </span>
             <input type="file" id="file-input" hidden
-                   accept=".txt,.md,.csv,.json,image/*" />
+                   accept=".pdf,.docx,.txt,.md,.csv,.json,image/*" />
           </div>
 
           <div id="extract-report" class="extract-report" hidden></div>

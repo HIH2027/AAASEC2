@@ -94,6 +94,127 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- welcome ---------- */
+
+.welcome-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+  backdrop-filter: blur(3px);
+  animation: fade-in 0.18s ease-out;
+}
+
+.welcome-backdrop[hidden] {
+  display: none;
+}
+
+.welcome {
+  max-width: 40rem;
+  padding: 1.9rem 2rem 1.7rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgba(16, 24, 40, 0.22);
+  animation: rise-in 0.22s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-backdrop,
+  .welcome {
+    animation: none;
+  }
+}
+
+.welcome-eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+.welcome h2 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.3rem, 1.05rem + 1.1vw, 1.65rem);
+  font-weight: 660;
+  line-height: 1.25;
+  letter-spacing: -0.022em;
+}
+
+.welcome-lede {
+  margin: 0 0 1.2rem;
+  color: var(--muted);
+  font-size: 0.97rem;
+}
+
+.welcome-points {
+  margin: 0 0 1.2rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.welcome-points li {
+  position: relative;
+  margin: 0;
+  padding-left: 1.4rem;
+  font-size: 0.89rem;
+  color: var(--muted);
+}
+
+.welcome-points li::before {
+  content: "";
+  position: absolute;
+  top: 0.52em;
+  left: 0.3rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.welcome-points strong {
+  display: block;
+  color: var(--text);
+  font-weight: 620;
+}
+
+.welcome-note {
+  margin: 0 0 1.3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--contra);
+  border-radius: var(--radius-sm);
+  background: var(--contra-soft);
+  font-size: 0.82rem;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.welcome-actions .primary-wide {
+  width: auto;
+  flex: 1 1 12rem;
+}
+
 /* ---------- header ---------- */
 
 .page-header {

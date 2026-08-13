@@ -256,10 +256,37 @@ def test_extract_response_carries_no_identifier(client) -> None:
 
 def test_extract_rejects_unsupported_type(client) -> None:
     response = client.post(
-        "/api/extract", files={"file": ("x.pdf", b"%PDF", "application/pdf")}
+        "/api/extract",
+        files={"file": ("x.xlsx", b"PK\x03\x04", "application/vnd.ms-excel")},
     )
     assert response.status_code == 422
     assert "Unsupported file type" in response.json()["error"]
+
+
+def test_extract_reads_a_word_document(client) -> None:
+    import io
+
+    import docx
+
+    document = docx.Document()
+    document.add_paragraph("Age: 78")
+    table = document.add_table(rows=0, cols=2)
+    for name, dose in (("Warfarin", "5 mg"), ("Ketoconazole", "200 mg")):
+        cells = table.add_row().cells
+        cells[0].text = name
+        cells[1].text = dose
+    buffer = io.BytesIO()
+    document.save(buffer)
+
+    response = client.post(
+        "/api/extract", files={"file": ("list.docx", buffer.getvalue(), "")}
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["source"] == "word"
+    names = {m["name"] for m in payload["profile"]["medications"]}
+    assert {"warfarin", "ketoconazole"} <= names
 
 
 def test_extract_requires_a_file(client) -> None:

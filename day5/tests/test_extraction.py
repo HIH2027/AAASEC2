@@ -119,7 +119,7 @@ def test_invalid_json_is_rejected_clearly() -> None:
 
 def test_unsupported_file_type_is_rejected() -> None:
     with pytest.raises(ValueError, match="Unsupported file type"):
-        extract_upload("scan.pdf", "application/pdf", b"%PDF-1.4")
+        extract_upload("book.xlsx", "application/vnd.ms-excel", b"PK\x03\x04")
 
 
 def test_oversized_and_empty_uploads_are_rejected() -> None:
@@ -139,3 +139,142 @@ def test_upload_dispatches_on_suffix() -> None:
     assert extract_upload("a.csv", "text/csv", b"name\nWarfarin\n").source == "csv"
     assert extract_upload("a.json", "application/json", b"{}").source == "json"
     assert extract_upload("a.md", "text/markdown", b"Warfarin 5 mg").source == "markdown"
+
+
+# ---------- PDF and Word ----------
+
+MED_LINES = [
+    "Age: 78",
+    "INR 1.6",
+    "Warfarin 5 mg once daily",
+    "Ketoconazole 200 mg once daily oral",
+    "Simvastatin 40 mg at bedtime",
+]
+
+
+def _build_pdf(lines: list[str]) -> bytes:
+    """A minimal real PDF with a text layer, written with pypdf."""
+    import io
+
+    from pypdf import PdfWriter
+    from pypdf.generic import (
+        ArrayObject,
+        DecodedStreamObject,
+        DictionaryObject,
+        NameObject,
+        NumberObject,
+    )
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+
+    stream = "BT /F1 12 Tf 72 720 Td 16 TL\n"
+    for line in lines:
+        stream += f"({line}) Tj T*\n"
+    stream += "ET"
+
+    content = DecodedStreamObject()
+    content.set_data(stream.encode("latin-1"))
+    page[NameObject("/Contents")] = writer._add_object(content)
+
+    font = DictionaryObject()
+    font.update(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    resources = DictionaryObject()
+    fonts = DictionaryObject()
+    fonts[NameObject("/F1")] = writer._add_object(font)
+    resources[NameObject("/Font")] = fonts
+    page[NameObject("/Resources")] = resources
+    page[NameObject("/MediaBox")] = ArrayObject(
+        [NumberObject(0), NumberObject(0), NumberObject(612), NumberObject(792)]
+    )
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+def _build_docx(paragraphs: list[str], table_rows: list[list[str]] | None = None) -> bytes:
+    import io
+
+    import docx
+
+    document = docx.Document()
+    for line in paragraphs:
+        document.add_paragraph(line)
+    if table_rows:
+        table = document.add_table(rows=0, cols=len(table_rows[0]))
+        for row in table_rows:
+            cells = table.add_row().cells
+            for cell, value in zip(cells, row):
+                cell.text = value
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def test_pdf_text_layer_is_read() -> None:
+    result = extract_upload("list.pdf", "application/pdf", _build_pdf(MED_LINES))
+    names = {m["name"] for m in result.profile["medications"]}
+
+    assert result.source == "pdf"
+    assert {"warfarin", "ketoconazole", "simvastatin"} <= names
+    assert result.profile["age"] == 78
+    assert any("text layer of 1 page" in note for note in result.notes)
+
+
+def test_scanned_pdf_without_text_is_reported_clearly() -> None:
+    blank = _build_pdf([])
+    with pytest.raises(ValueError, match="no text layer"):
+        extract_upload("scan.pdf", "application/pdf", blank)
+
+
+def test_corrupt_pdf_is_rejected_not_crashed() -> None:
+    with pytest.raises(ValueError, match="Could not read this PDF"):
+        extract_upload("broken.pdf", "application/pdf", b"%PDF-1.4 truncated")
+
+
+def test_word_paragraphs_are_read() -> None:
+    data = _build_docx(MED_LINES)
+    result = extract_upload("list.docx", "", data)
+    names = {m["name"] for m in result.profile["medications"]}
+
+    assert result.source == "word"
+    assert {"warfarin", "ketoconazole", "simvastatin"} <= names
+    assert result.profile["inr"] == 1.6
+
+
+def test_word_tables_are_read_too() -> None:
+    # A medication list is very often a table, and paragraph text alone
+    # would miss every row.
+    data = _build_docx(
+        ["Medication review"],
+        [
+            ["Medicine", "Dose", "Frequency"],
+            ["Warfarin", "5 mg", "once daily"],
+            ["Amiodarone", "200 mg", "once daily"],
+        ],
+    )
+    result = extract_upload("table.docx", "", data)
+    names = {m["name"] for m in result.profile["medications"]}
+
+    assert {"warfarin", "amiodarone"} <= names
+    assert any("table(s)" in note for note in result.notes)
+
+
+def test_legacy_doc_format_says_what_to_do() -> None:
+    with pytest.raises(ValueError, match=r"\.docx or PDF"):
+        extract_upload("old.doc", "application/msword", b"\xd0\xcf\x11\xe0")
+
+
+def test_identifiers_in_a_pdf_are_still_discarded() -> None:
+    data = _build_pdf(["Patient name: Ahmed", "MRN 4482910"] + MED_LINES)
+    result = extract_upload("note.pdf", "application/pdf", data)
+    blob = str(result.profile).lower()
+    assert "ahmed" not in blob
+    assert "4482910" not in blob
