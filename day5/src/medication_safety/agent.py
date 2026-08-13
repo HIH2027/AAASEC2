@@ -192,6 +192,29 @@ def format_report(assessment: SafetyAssessment, summary: str) -> str:
     return "\n".join(lines)
 
 
+def analyze_profile_result(
+    raw_profile: dict, *, offline: bool = False
+) -> AgentResult:
+    """Run the workflow on a caller-supplied profile.
+
+    The profile is untrusted regardless of where it came from, so it goes
+    through exactly the same validation and guardrails as the MCP payload.
+    """
+    assessment = assess_profile(raw_profile)
+
+    if offline:
+        summary, source = _deterministic_summary(assessment), "deterministic"
+    else:
+        summary, source = _ai_summary(assessment)
+
+    return AgentResult(
+        assessment=assessment,
+        summary=summary,
+        summary_source=source,
+        mode="offline" if offline else "live",
+    )
+
+
 def run_agent_result(*, offline: bool = False) -> AgentResult:
     """Run the protected workflow and return the structured assessment."""
     raw_profile = fetch_patient_profile()

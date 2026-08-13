@@ -114,6 +114,13 @@ class SafetyAssessment(BaseModel):
     boundary: list[str]
 
 
+class ChatReply(BaseModel):
+    """One grounded answer, labelled with the layer that produced it."""
+
+    answer: str
+    source: Literal["model", "deterministic", "refused"]
+
+
 class AgentResult(BaseModel):
     """Workflow output shared by the CLI and the web dashboard."""
 

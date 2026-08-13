@@ -20,10 +20,35 @@
         <strong>Educational and research prototype.</strong> Not an authorised
         medical device and not for clinical use.
         It supports, and does not replace, a licensed pharmacist and the
-        treating prescriber. Enter de-identified data only.
+        treating prescriber. Enter de-identified data only &mdash; no names, no
+        record numbers, no dates of birth.
       </div>
 
-      <section class="controls">
+      <!-- STEP 1 — input slots -->
+      <section class="step">
+        <h2 class="step-title"><span class="step-number">1</span> Patient input</h2>
+
+        <div class="slot-actions">
+          <button id="load-sample" class="secondary">Load sample profile</button>
+          <button id="load-mcp" class="secondary">Fetch protected profile over MCP</button>
+          <button id="clear" class="secondary">Clear</button>
+        </div>
+
+        <fieldset>
+          <legend>Medications</legend>
+          <div id="med-slots"></div>
+          <button id="add-med" class="secondary small">+ Add medication</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Clinical parameters &mdash; leave blank if unknown</legend>
+          <p class="hint">
+            A blank slot is reported as &ldquo;Not provided&rdquo; and added to the
+            request list. It is never assumed to be normal.
+          </p>
+          <div class="slot-grid" id="param-slots"></div>
+        </fieldset>
+
         <fieldset>
           <legend>Summary mode</legend>
           <label>
@@ -35,14 +60,17 @@
             Live AI (phrasing only, traced in LangSmith)
           </label>
         </fieldset>
+
         <button id="run">Run review</button>
+        <p id="status" class="status" role="status">
+          Fill the slots or load the sample profile, then run the review.
+        </p>
       </section>
 
-      <p id="status" class="status" role="status">
-        Choose a mode and run the review.
-      </p>
+      <!-- STEP 2 — output -->
+      <section id="results" class="step" hidden>
+        <h2 class="step-title"><span class="step-number">2</span> Assessment</h2>
 
-      <section id="results" hidden>
         <div class="cards">
           <div class="card">
             <span class="card-label">Verified findings</span>
@@ -59,31 +87,56 @@
         </div>
 
         <div class="summary">
-          <h2>Handover summary</h2>
+          <h3>Handover summary</h3>
           <p id="summary"></p>
         </div>
 
-        <h2 class="section-heading">Patient profile</h2>
+        <h3 class="section-heading">Patient profile</h3>
         <table>
           <tbody id="profile-rows"></tbody>
         </table>
 
-        <h2 class="section-heading">Findings</h2>
+        <h3 class="section-heading">Findings</h3>
         <div id="findings"></div>
 
-        <h2 class="section-heading">Patient-specific modifiers</h2>
+        <h3 class="section-heading">Patient-specific modifiers</h3>
         <ul id="modifiers"></ul>
 
         <div id="inr-block" hidden>
-          <h2 class="section-heading">INR context</h2>
+          <h3 class="section-heading">INR context</h3>
           <ul id="inr-context"></ul>
         </div>
 
-        <h2 class="section-heading">Missing information needed for confirmation</h2>
+        <h3 class="section-heading">Missing information needed for confirmation</h3>
         <ul id="missing"></ul>
 
-        <h2 class="section-heading">Boundary</h2>
+        <h3 class="section-heading">Boundary</h3>
         <ul id="boundary"></ul>
+      </section>
+
+      <!-- STEP 3 — grounded chat -->
+      <section id="chat-section" class="step" hidden>
+        <h2 class="step-title"><span class="step-number">3</span> Ask about this assessment</h2>
+        <p class="hint">
+          Answers are grounded in the assessment above. The assistant will not
+          advise starting, stopping or changing a medicine, and will say when a
+          question is outside what was assessed.
+        </p>
+
+        <div class="chips" id="suggestions"></div>
+        <div class="chat-log" id="chat-log"></div>
+
+        <form class="chat-input" id="chat-form">
+          <input
+            id="chat-question"
+            type="text"
+            maxlength="400"
+            autocomplete="off"
+            placeholder="e.g. Which finding is most urgent, and what is missing?"
+          />
+          <button type="submit" id="chat-send">Ask</button>
+        </form>
+        <p id="chat-status" class="status" role="status"></p>
       </section>
     </main>
 
