@@ -7,6 +7,11 @@ separately in :mod:`medication_safety.analysis`.
 
 Scope is deliberately small and auditable. An unmatched pair means "no verified
 rule fired", never "no interaction exists".
+
+Each rule also carries ``tests`` and ``procedure``: a structured breakout of
+the same clinical action already described in ``action``, so the dashboard can
+show a "suggested plan" section built entirely from sourced content, with no
+model involved.
 """
 
 DAILYMED = "https://dailymed.nlm.nih.gov/dailymed"
@@ -25,6 +30,11 @@ PAIR_RULES: tuple[dict, ...] = (
             "Urgent pharmacist/prescriber reconciliation: confirm ketoconazole "
             "formulation, indication and duration, then use current authorized "
             "labeling and formulary. The patient must not change therapy alone."
+        ),
+        "tests": ("Creatine kinase (CK)", "Renal function panel"),
+        "procedure": (
+            "Confirm ketoconazole formulation, indication and duration",
+            "Escalate to prescriber before the next simvastatin dose",
         ),
         "sources": (
             f"{DAILYMED}/drugInfo.cfm?setid=57e81e13-b395-4dbd-b660-3038de41a838",
@@ -45,6 +55,11 @@ PAIR_RULES: tuple[dict, ...] = (
             "Pharmacist/prescriber should review statin choice and dose and "
             "assess muscle symptoms, CK and renal status when indicated."
         ),
+        "tests": ("Creatine kinase (CK)", "Renal function panel"),
+        "procedure": (
+            "Review simvastatin dose against the 20 mg/day labelled limit",
+            "Ask about new or worsening muscle pain or weakness",
+        ),
         "sources": (
             f"{DAILYMED}/getFile.cfm?setid=d912a75a-ddac-4e7b-b5c4-321d4252ec05&type=pdf",
         ),
@@ -61,6 +76,11 @@ PAIR_RULES: tuple[dict, ...] = (
         "action": (
             "Review INR trend, adherence, diet and interacting medicines. "
             "Do not adjust warfarin from one INR result alone."
+        ),
+        "tests": ("INR", "CBC/haemoglobin"),
+        "procedure": (
+            "Review INR trend rather than a single result",
+            "Ask about diet, adherence and any new interacting medicine",
         ),
         "sources": (
             f"{DAILYMED}/getFile.cfm?setid=d912a75a-ddac-4e7b-b5c4-321d4252ec05&type=pdf",
@@ -80,6 +100,11 @@ PAIR_RULES: tuple[dict, ...] = (
             "Confirm prior dose adjustment and assess heart rate/ECG, kidney "
             "trend, digoxin level and toxicity symptoms when clinically indicated."
         ),
+        "tests": ("Digoxin level", "ECG", "Renal function panel"),
+        "procedure": (
+            "Confirm whether the digoxin dose was already adjusted",
+            "Assess heart rate and ask about toxicity symptoms",
+        ),
         "sources": (
             f"{DAILYMED}/getFile.cfm?setid=d912a75a-ddac-4e7b-b5c4-321d4252ec05&type=pdf",
         ),
@@ -96,6 +121,11 @@ PAIR_RULES: tuple[dict, ...] = (
         "action": (
             "Review NSAID exposure and spironolactone indication/dose; obtain "
             "potassium and repeat renal function promptly when clinically indicated."
+        ),
+        "tests": ("Potassium", "Renal function panel"),
+        "procedure": (
+            "Review how often the NSAID is actually being taken",
+            "Reassess the spironolactone indication and dose",
         ),
         "sources": (
             f"{DAILYMED}/drugInfo.cfm?setid=10a5c989-66e3-494d-bfd8-b2d6df3be411",
@@ -123,6 +153,11 @@ BLEEDING_CLUSTER_RULE = {
         "assess bleeding and CBC/hemoglobin, and reconcile promptly with the "
         "prescriber."
     ),
+    "tests": ("CBC/haemoglobin",),
+    "procedure": (
+        "Confirm the indication and intended duration of every antiplatelet/NSAID",
+        "Ask about bleeding or bruising since the combination started",
+    ),
     "sources": (
         f"{DAILYMED}/lookup.cfm?setid=51e98fb6-ba76-497e-95d8-fe895ef0b7ed&version=7",
         f"{DAILYMED}/fda/fdaDrugXsl.cfm?setid=c88f33ed-6dfb-4c5e-bc01-d8e36dd97299&type=display",
@@ -143,6 +178,11 @@ BRADYCARDIA_RULE = {
     "action": (
         "Verify indications and assess pulse, ECG and symptoms such as "
         "dizziness, syncope or marked fatigue."
+    ),
+    "tests": ("ECG", "Digoxin level"),
+    "procedure": (
+        "Verify the indication for each of the three medicines",
+        "Ask about dizziness, syncope or marked fatigue",
     ),
     "sources": (
         f"{DAILYMED}/getFile.cfm?setid=d912a75a-ddac-4e7b-b5c4-321d4252ec05&type=pdf",

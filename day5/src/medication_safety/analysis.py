@@ -59,6 +59,8 @@ BOUNDARY = (
 PROFILE_LABELS = {
     "patient_description": "Description",
     "age": "Age",
+    "bmi": "BMI",
+    "bsa": "BSA (m^2)",
     "warfarin_indication": "Indication for warfarin",
     "dvt_timing": "DVT timing",
     "inr": "INR",
@@ -127,6 +129,8 @@ def _finding_from_rule(rule: dict, medications: list[str]) -> Finding:
         reason=rule["reason"],
         action=rule["action"],
         sources=sources,
+        suggested_tests=list(rule.get("tests", ())),
+        suggested_procedure=list(rule.get("procedure", ())),
     )
 
 
@@ -149,6 +153,16 @@ def _patient_modifiers(profile: PatientProfile) -> list[str]:
         )
     if profile.dialysis:
         modifiers.append("Patient is on dialysis; clearance assumptions change.")
+    if profile.bmi is not None and profile.bmi < 18.5:
+        modifiers.append(
+            f"BMI {profile.bmi:g} is below 18.5; low body weight can increase "
+            "exposure to weight-independent dosing."
+        )
+    elif profile.bmi is not None and profile.bmi >= 35:
+        modifiers.append(
+            f"BMI {profile.bmi:g} is 35 or higher; volume of distribution and "
+            "dosing assumptions may not hold at this weight."
+        )
     if not modifiers:
         modifiers.append("No patient-specific modifier was triggered.")
     return modifiers
@@ -166,6 +180,31 @@ def _inr_context(profile: PatientProfile) -> list[str]:
         "Do not increase warfarin automatically; first verify INR trend, "
         "adherence, diet, treatment plan and interacting medicines.",
     ]
+
+
+def _aggregate_plan(findings: list[Finding]) -> tuple[list[str], list[str]]:
+    """Deduplicate tests and procedures across findings, priority order kept.
+
+    ``findings`` is already sorted by severity, so a first-seen-wins dedup
+    naturally keeps the most urgent finding's phrasing when two rules ask for
+    the same test.
+    """
+    tests: list[str] = []
+    procedures: list[str] = []
+    seen_tests: set[str] = set()
+    seen_procedures: set[str] = set()
+
+    for finding in findings:
+        for test in finding.suggested_tests:
+            if test not in seen_tests:
+                seen_tests.add(test)
+                tests.append(test)
+        for step in finding.suggested_procedure:
+            if step not in seen_procedures:
+                seen_procedures.add(step)
+                procedures.append(step)
+
+    return tests, procedures
 
 
 def assess_profile(raw_profile: dict[str, Any]) -> SafetyAssessment:
@@ -225,6 +264,8 @@ def assess_profile(raw_profile: dict[str, Any]) -> SafetyAssessment:
         if getattr(profile, field) is None
     ]
 
+    plan_tests, plan_procedures = _aggregate_plan(findings)
+
     return SafetyAssessment(
         profile_summary=profile_summary,
         findings=findings,
@@ -233,4 +274,6 @@ def assess_profile(raw_profile: dict[str, Any]) -> SafetyAssessment:
         missing_information=missing,
         severity_counts=severity_counts,
         boundary=list(BOUNDARY),
+        plan_tests=plan_tests,
+        plan_procedures=plan_procedures,
     )

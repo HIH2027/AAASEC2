@@ -176,6 +176,12 @@
             <span class="step-number">2</span> Assessment
           </h2>
 
+          <div class="verdict-row">
+            <span class="verdict-label">Quick verdict</span>
+            <span class="verdict-badge" id="verdict-badge"></span>
+            <span class="verdict-source" id="verdict-source"></span>
+          </div>
+
           <div class="cards">
             <div class="card">
               <span class="card-label">Findings</span>
@@ -198,6 +204,20 @@
 
           <h3 class="section-heading">Findings</h3>
           <div id="findings"></div>
+
+          <div id="plan-block" hidden>
+            <h3 class="section-heading">Verified plan <span class="section-note">(from the matched rules, no AI)</span></h3>
+            <div class="plan-columns">
+              <div>
+                <p class="plan-subhead">Tests</p>
+                <ul id="plan-tests"></ul>
+              </div>
+              <div>
+                <p class="plan-subhead">Procedure</p>
+                <ul id="plan-procedures"></ul>
+              </div>
+            </div>
+          </div>
 
           <div class="detail-columns">
             <div>
@@ -226,9 +246,45 @@
           </details>
         </section>
 
+        <section id="ai-plan-section" class="panel" hidden>
+          <h2 class="panel-title">
+            <span class="step-number">3</span> AI-suggested plan
+            <span class="badge ai-experimental">experimental</span>
+          </h2>
+          <div class="ai-plan-notice">
+            <strong>Genuinely generated, not verified.</strong> Unlike the
+            findings above, nothing here was decided by a rule. Every item is
+            a model suggestion that a licensed pharmacist must independently
+            confirm before acting on it. Available in Live AI mode only.
+          </div>
+
+          <button id="generate-plan" class="secondary">
+            Generate AI-suggested plan
+          </button>
+          <p id="plan-status" class="status" role="status"></p>
+
+          <div id="ai-plan-result" hidden>
+            <div class="ai-plan-columns">
+              <div>
+                <p class="plan-subhead">Medication considerations</p>
+                <ul id="ai-plan-meds"></ul>
+              </div>
+              <div>
+                <p class="plan-subhead">Suggested tests</p>
+                <ul id="ai-plan-tests"></ul>
+              </div>
+              <div>
+                <p class="plan-subhead">Suggested procedures</p>
+                <ul id="ai-plan-procedures"></ul>
+              </div>
+            </div>
+            <ul id="ai-plan-notes" class="ai-plan-notes"></ul>
+          </div>
+        </section>
+
         <section id="chat-section" class="panel" hidden>
           <h2 class="panel-title">
-            <span class="step-number">3</span> Ask about this assessment
+            <span class="step-number">4</span> Ask about this assessment
           </h2>
           <p class="hint">
             Answers are grounded in the assessment above. The assistant will not

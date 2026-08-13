@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 *.log
 .pytest_cache/
-src/medication_safety/static/fonts/*.woff2
+# IBM Plex Sans (SIL OFL) is committed under static/fonts/ — see its
+# LICENSE.txt there. Anything else dropped in that folder (e.g. a
+# proprietary Thmanyya build) should stay untracked.
 src/medication_safety/static/fonts/*.ttf
 src/medication_safety/static/fonts/*.otf

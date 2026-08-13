@@ -16,6 +16,27 @@ Severity = Literal["CONTRAINDICATED", "MAJOR", "MODERATE", "MINOR"]
 # What the pharmacist is being asked to do, kept separate from severity.
 ActionClass = Literal["AVOID", "MONITOR", "CONSULT"]
 
+# A hard-capped, fixed vocabulary for the one-line verdict. The model may only
+# select from this list; anything else is replaced deterministically. This is
+# the "constrained output" guardrail: safety comes from the vocabulary being
+# closed, not from catching bad text after the fact.
+QuickVerdict = Literal[
+    "STOP AND CONFIRM",
+    "URGENT REVIEW",
+    "REVIEW SOON",
+    "MONITOR CLOSELY",
+    "ROUTINE CHECK",
+    "NO ACTION NEEDED",
+]
+QUICK_VERDICT_VALUES: tuple[str, ...] = (
+    "STOP AND CONFIRM",
+    "URGENT REVIEW",
+    "REVIEW SOON",
+    "MONITOR CLOSELY",
+    "ROUTINE CHECK",
+    "NO ACTION NEEDED",
+)
+
 SEVERITY_PRIORITY: dict[str, int] = {
     "CONTRAINDICATED": 0,
     "MAJOR": 1,
@@ -86,6 +107,8 @@ class PatientProfile(BaseModel):
     digoxin_level: float | None = Field(default=None, ge=0, le=20)
     cbc_hemoglobin: float | None = Field(default=None, ge=0, le=30)
     aspirin_clopidogrel_indication: str | None = Field(default=None, max_length=120)
+    bmi: float | None = Field(default=None, ge=8, le=90)
+    bsa: float | None = Field(default=None, ge=0.3, le=4.0)
 
     @field_validator("*", mode="before")
     @classmethod
@@ -105,6 +128,10 @@ class Finding(BaseModel):
     reason: str
     action: str
     sources: list[str] = Field(min_length=1)
+    # Structured breakout of `action`, sourced from the same rule record.
+    # No model contributes to either list.
+    suggested_tests: list[str] = Field(default_factory=list)
+    suggested_procedure: list[str] = Field(default_factory=list)
 
 
 class SafetyAssessment(BaseModel):
@@ -117,6 +144,10 @@ class SafetyAssessment(BaseModel):
     missing_information: list[str]
     severity_counts: dict[str, int]
     boundary: list[str]
+    # Tests and procedures already implied by the findings above, deduplicated
+    # and ordered by finding severity. Still entirely rule-derived.
+    plan_tests: list[str] = Field(default_factory=list)
+    plan_procedures: list[str] = Field(default_factory=list)
 
 
 class ChatReply(BaseModel):
@@ -132,4 +163,33 @@ class AgentResult(BaseModel):
     assessment: SafetyAssessment
     summary: str
     summary_source: Literal["model", "deterministic"]
+    quick_verdict: str
+    verdict_source: Literal["model", "deterministic"]
     mode: str
+
+
+class AiSuggestedPlan(BaseModel):
+    """Genuinely generated content: not restated from a rule.
+
+    Every item here is a model suggestion the pharmacist has not yet
+    evaluated. It is validated for medication grounding and banned phrasing
+    before it ever reaches this model (see chat.py's guardrail helpers), but
+    validation reduces risk, it does not certify correctness.
+    """
+
+    medication_considerations: list[str] = Field(default_factory=list, max_length=5)
+    suggested_tests: list[str] = Field(default_factory=list, max_length=6)
+    suggested_procedures: list[str] = Field(default_factory=list, max_length=6)
+
+
+class AiPlanResult(BaseModel):
+    """Envelope around a generation attempt, so a rejection is visible.
+
+    ``accepted=False`` with an empty plan is a valid, expected outcome: it
+    means every suggestion the model produced failed validation, not that
+    something crashed.
+    """
+
+    plan: AiSuggestedPlan | None = None
+    accepted: bool
+    notes: list[str] = Field(default_factory=list)

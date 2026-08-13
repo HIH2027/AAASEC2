@@ -4,7 +4,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from medication_safety import web
-from medication_safety.agent import _deterministic_summary
+from medication_safety.agent import _deterministic_summary, _deterministic_verdict
 from medication_safety.analysis import assess_profile
 from medication_safety.models import AgentResult
 
@@ -30,6 +30,8 @@ def client(monkeypatch):
             assessment=assessment,
             summary=_deterministic_summary(assessment),
             summary_source="deterministic",
+            quick_verdict=_deterministic_verdict(assessment),
+            verdict_source="deterministic",
             mode="offline" if offline else "live",
         )
 
@@ -344,3 +346,91 @@ def test_patient_description_is_shown_but_screened(client, monkeypatch) -> None:
     )
     assert rejected.status_code == 422
     assert "de-identified" in rejected.json()["error"]
+
+
+# ---------- /api/suggest-plan: genuinely generated, opt-in, live-only ----------
+
+
+def test_suggest_plan_rejects_offline_mode(client) -> None:
+    response = client.post(
+        "/api/suggest-plan",
+        json={"mode": "offline", "assessment": _assessment(client)},
+    )
+    assert response.status_code == 400
+    assert "Live AI mode" in response.json()["error"]
+
+
+def test_suggest_plan_requires_a_valid_assessment(client) -> None:
+    response = client.post(
+        "/api/suggest-plan", json={"mode": "live", "assessment": {"x": 1}}
+    )
+    assert response.status_code == 400
+
+
+def test_suggest_plan_returns_an_accepted_plan(client, monkeypatch) -> None:
+    from medication_safety.models import AiPlanResult, AiSuggestedPlan
+
+    def fake_generate(assessment):
+        return AiPlanResult(
+            plan=AiSuggestedPlan(
+                medication_considerations=["Consider an alternative statin"],
+                suggested_tests=["Creatine kinase (CK)"],
+                suggested_procedures=[],
+            ),
+            accepted=True,
+            notes=[],
+        )
+
+    monkeypatch.setattr(web, "generate_ai_plan", fake_generate)
+    response = client.post(
+        "/api/suggest-plan",
+        json={"mode": "live", "assessment": _assessment(client)},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["accepted"] is True
+    assert payload["plan"]["suggested_tests"] == ["Creatine kinase (CK)"]
+
+
+def test_suggest_plan_surfaces_a_declined_result_without_erroring(client, monkeypatch) -> None:
+    from medication_safety.models import AiPlanResult
+
+    def fake_generate(assessment):
+        return AiPlanResult(
+            plan=None, accepted=False, notes=["No suggestion passed validation."]
+        )
+
+    monkeypatch.setattr(web, "generate_ai_plan", fake_generate)
+    response = client.post(
+        "/api/suggest-plan",
+        json={"mode": "live", "assessment": _assessment(client)},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["accepted"] is False
+    assert payload["plan"] is None
+
+
+def test_suggest_plan_missing_api_key_returns_503(client, monkeypatch) -> None:
+    def fake_generate(assessment):
+        raise RuntimeError("OPENROUTER_API_KEY is required for the AI-suggested plan")
+
+    monkeypatch.setattr(web, "generate_ai_plan", fake_generate)
+    response = client.post(
+        "/api/suggest-plan",
+        json={"mode": "live", "assessment": _assessment(client)},
+    )
+    assert response.status_code == 503
+
+
+def test_analyze_response_includes_quick_verdict(client) -> None:
+    payload = client.post("/api/analyze", json={}).json()
+    assert payload["quick_verdict"] in {
+        "STOP AND CONFIRM",
+        "URGENT REVIEW",
+        "REVIEW SOON",
+        "MONITOR CLOSELY",
+        "ROUTINE CHECK",
+        "NO ACTION NEEDED",
+    }
+    assert payload["verdict_source"] == "deterministic"

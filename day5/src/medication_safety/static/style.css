@@ -20,6 +20,13 @@
   --contra-soft: #fdeeec;
   --major: #8a5410;
   --major-soft: #fdf3e3;
+  --ok: #1c7a4d;
+  --ok-soft: #e9f6ee;
+
+  /* A distinct accent for genuinely generated content, so it never reads
+     visually the same as the sourced, rule-based sections. */
+  --ai: #7c4fd6;
+  --ai-soft: #f2ecfc;
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -52,13 +59,21 @@
   --contra-soft: #3a2523;
   --major: #f2c274;
   --major-soft: #372c18;
+  --ok: #6bce9c;
+  --ok-soft: #163427;
+
+  --ai: #b799f5;
+  --ai-soft: #2c2440;
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-/* Thmanyya is picked up automatically if it is installed on the machine, or
-   if its files are dropped into static/fonts/. Nothing is fetched from the
-   network, so the page works offline and ships no third-party font. */
+/* IBM Plex Sans, self-hosted below (SIL Open Font License — see
+   static/fonts/IBMPlexSans-LICENSE.txt). Designed for technical/professional
+   interfaces, which is the actual reason it is here over a decorative
+   typeface. Thmanyya stays first: if it is ever installed on a visitor's
+   machine, or its files are dropped into static/fonts/, it is picked up with
+   no code change needed, and Plex is the reliable fallback either way. */
 @font-face {
   font-family: "Thmanyya";
   src:
@@ -78,6 +93,20 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/static/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/static/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+  font-weight: 600 700;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -87,7 +116,7 @@ body {
   padding: 0 1.25rem 3rem;
   background: var(--bg);
   color: var(--text);
-  font-family: "Thmanyya", "Dubai", "Inter", "Segoe UI", system-ui,
+  font-family: "Thmanyya", "IBM Plex Sans", "Dubai", "Segoe UI", system-ui,
     -apple-system, sans-serif;
   font-size: 15px;
   line-height: 1.55;
@@ -739,6 +768,51 @@ button.small {
 
 /* ---------- assessment ---------- */
 
+.verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.verdict-label {
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 660;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.verdict-badge {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.verdict-badge.critical {
+  background: var(--contra);
+  color: var(--surface);
+}
+
+.verdict-badge.warn {
+  background: var(--major-soft);
+  color: var(--major);
+  border: 1px solid currentColor;
+}
+
+.verdict-badge.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid currentColor;
+}
+
+.verdict-source {
+  color: var(--faint);
+  font-size: 0.76rem;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
@@ -896,6 +970,72 @@ td.absent {
   color: var(--faint);
   font-family: var(--mono);
   font-weight: 600;
+}
+
+.badge.ai-experimental {
+  margin-left: 0.35rem;
+  background: var(--ai-soft);
+  color: var(--ai);
+  border: 1px solid currentColor;
+  text-transform: uppercase;
+}
+
+/* ---------- suggested plan (deterministic, from the matched rules) ---------- */
+
+.section-note {
+  color: var(--faint);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.plan-columns,
+.ai-plan-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.plan-subhead {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 620;
+}
+
+/* ---------- AI-suggested plan: visually distinct, never mistaken for the
+   verified sections above ---------- */
+
+.ai-plan-notice {
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 0.9rem;
+  border: 1px dashed var(--ai);
+  border-radius: var(--radius-sm);
+  background: var(--ai-soft);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+#generate-plan {
+  border-color: var(--ai);
+  color: var(--ai);
+}
+
+#generate-plan:hover:not(:disabled) {
+  background: var(--ai-soft);
+}
+
+#ai-plan-result {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border);
+}
+
+.ai-plan-notes {
+  margin-top: 0.8rem;
+  padding-left: 1.1rem;
+  color: var(--faint);
+  font-size: 0.8rem;
 }
 
 .finding .label {

@@ -108,3 +108,43 @@ controls rather than new ones.
   knowledge.
 - History is capped at six turns and each question at 400 characters, limiting
   how much attacker-controlled text can accumulate in the context.
+
+## Quick verdict: a closed vocabulary instead of pattern-matching
+
+The verdict badge may only be one of six exact phrases. This is a stronger
+technique than the summary's post-hoc string checks: safety comes from the
+output space being closed, not from anticipating every bad phrasing. A
+near-miss ("STOP & CONFIRM" instead of "STOP AND CONFIRM") is rejected just as
+completely as free prose, and the deterministic fallback is itself computed
+from the same severity/action_class the rules already produced, so a rejected
+verdict is never absent — only ever replaced with a value already implied by
+the finding.
+
+## AI-suggested plan: the one genuinely generative output, guarded hardest
+
+Every other AI output in this project restates something already decided. The
+AI-suggested plan does not: it proposes tests, procedures and medication
+considerations the deterministic layer never computed. That distinction
+changes what "safe" has to mean here, so its guardrail is stricter than
+anything else in the app:
+
+- **Medication grounding.** A suggestion may only name a medication already
+  present in the findings passed to the model. A plausible-looking drug name
+  that isn't part of the case is rejected.
+- **No dosing.** A number next to a dose unit (`10 mg`, `5 ml`, `2 units`) is
+  rejected outright, on top of the existing directive-phrase list.
+- **No placeholders.** A syntactically valid but content-free reply (the model
+  echoing the prompt's example shape, e.g. `"..."`) passes every safety check
+  and says nothing useful; a minimum real-word count catches it. This was
+  found empirically, not designed in advance — see the README's Demonstration
+  Evidence.
+- **Per-item rejection, whole-batch honesty.** Failing items are dropped
+  individually. If nothing survives, the result is `accepted: false` with an
+  empty plan — a normal, expected outcome the interface displays plainly,
+  never softened into something that looks like it worked.
+- **Opt-in and live-only.** It never runs as part of a normal review, and
+  there is no offline path, because there is nothing to be deterministic
+  about.
+- **Visually inseparable-proof.** The interface gives this section a distinct
+  colour, a dashed border, and a persistent "not verified" notice so it can
+  never be mistaken for the sourced findings above it.

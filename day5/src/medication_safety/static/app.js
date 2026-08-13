@@ -5,6 +5,8 @@
 
 const PARAM_SLOTS = [
   { key: "age", label: "Age", type: "number", min: 0, max: 120 },
+  { key: "bmi", label: "BMI", type: "number", step: "0.1", min: 8, max: 90 },
+  { key: "bsa", label: "BSA (m^2)", type: "number", step: "0.01", min: 0.3, max: 4 },
   { key: "warfarin_indication", label: "Indication for warfarin", type: "text" },
   { key: "dvt_timing", label: "DVT timing", type: "text" },
   { key: "inr", label: "INR", type: "number", step: "0.1" },
@@ -33,6 +35,7 @@ const SUGGESTIONS = [
 ];
 
 let currentAssessment = null;
+let lastMode = "offline";
 const chatHistory = [];
 
 const statusLine = document.getElementById("status");
@@ -389,10 +392,43 @@ function renderFindings(findings) {
   for (const finding of findings) container.append(renderFinding(finding));
 }
 
+const VERDICT_CLASS = {
+  "STOP AND CONFIRM": "critical",
+  "URGENT REVIEW": "critical",
+  "REVIEW SOON": "warn",
+  "MONITOR CLOSELY": "warn",
+  "ROUTINE CHECK": "ok",
+  "NO ACTION NEEDED": "ok",
+};
+
+function renderPlan(assessment) {
+  const block = document.getElementById("plan-block");
+  const hasPlan = assessment.plan_tests.length || assessment.plan_procedures.length;
+  block.hidden = !hasPlan;
+  if (!hasPlan) return;
+  fillList("plan-tests", assessment.plan_tests, "None.");
+  fillList("plan-procedures", assessment.plan_procedures, "None.");
+}
+
+function resetAiPlanPanel() {
+  document.getElementById("ai-plan-result").hidden = true;
+  setStatus(document.getElementById("plan-status"), "", false);
+  for (const id of ["ai-plan-meds", "ai-plan-tests", "ai-plan-procedures", "ai-plan-notes"]) {
+    document.getElementById(id).replaceChildren();
+  }
+}
+
 function render(result) {
   const assessment = result.assessment;
   const findings = assessment.findings;
   currentAssessment = assessment;
+  lastMode = result.mode;
+
+  document.getElementById("verdict-badge").textContent = result.quick_verdict;
+  document.getElementById("verdict-badge").className =
+    `verdict-badge ${VERDICT_CLASS[result.quick_verdict] || "warn"}`;
+  document.getElementById("verdict-source").textContent =
+    result.verdict_source === "model" ? "model, constrained" : "deterministic";
 
   document.getElementById("finding-count").textContent = findings.length;
   document.getElementById("top-severity").textContent = findings.length
@@ -404,6 +440,7 @@ function render(result) {
 
   renderProfile(assessment.profile_summary);
   renderFindings(findings);
+  renderPlan(assessment);
   fillList("modifiers", assessment.patient_modifiers, "None.");
   fillList(
     "missing",
@@ -418,6 +455,12 @@ function render(result) {
 
   document.getElementById("placeholder").hidden = true;
   results.hidden = false;
+  document.getElementById("ai-plan-section").hidden = false;
+  resetAiPlanPanel();
+  const generateButton = document.getElementById("generate-plan");
+  generateButton.disabled = lastMode !== "live";
+  generateButton.title =
+    lastMode === "live" ? "" : "Run the review in Live AI mode first";
   chatSection.hidden = false;
 }
 
@@ -432,7 +475,55 @@ function updateParamCount() {
     set === 0 ? "none set" : `${set} set`;
 }
 
-/* ---------- step 3: grounded chat ---------- */
+/* ---------- AI-suggested plan: opt-in, genuinely generated ---------- */
+
+async function generateAiPlan() {
+  if (!currentAssessment) return;
+
+  const button = document.getElementById("generate-plan");
+  const status = document.getElementById("plan-status");
+  button.disabled = true;
+  setStatus(status, "Asking the model for suggestions...", false);
+
+  try {
+    const response = await fetch("/api/suggest-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: lastMode, assessment: currentAssessment }),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      setStatus(status, payload.error || `Request failed (${response.status})`, true);
+      return;
+    }
+
+    const box = document.getElementById("ai-plan-result");
+    if (!payload.accepted || !payload.plan) {
+      box.hidden = true;
+      setStatus(
+        status,
+        payload.notes?.[0] || "No suggestion passed validation this run.",
+        false
+      );
+      return;
+    }
+
+    fillList("ai-plan-meds", payload.plan.medication_considerations, "None suggested.");
+    fillList("ai-plan-tests", payload.plan.suggested_tests, "None suggested.");
+    fillList("ai-plan-procedures", payload.plan.suggested_procedures, "None suggested.");
+    fillList("ai-plan-notes", payload.notes, "");
+    document.getElementById("ai-plan-notes").hidden = payload.notes.length === 0;
+    box.hidden = false;
+    setStatus(status, "Suggestions generated. Confirm every item independently.", false);
+  } catch (error) {
+    setStatus(status, `Could not reach the backend: ${error.message}`, true);
+  } finally {
+    button.disabled = lastMode !== "live";
+  }
+}
+
+/* ---------- step 4: grounded chat ---------- */
 
 function appendMessage(role, text, source) {
   const bubble = element("div", `bubble ${role}`);
@@ -603,10 +694,13 @@ document.getElementById("load-sample").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("generate-plan").addEventListener("click", generateAiPlan);
+
 document.getElementById("clear").addEventListener("click", () => {
   fillSlots({ medications: [] });
   results.hidden = true;
   chatSection.hidden = true;
+  document.getElementById("ai-plan-section").hidden = true;
   document.getElementById("placeholder").hidden = false;
   document.getElementById("extract-report").hidden = true;
   currentAssessment = null;

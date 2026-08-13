@@ -13,7 +13,7 @@ from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from .agent import analyze_profile_result, run_agent_result
+from .agent import analyze_profile_result, generate_ai_plan, run_agent_result
 from .chat import answer_question
 from .extraction import MAX_UPLOAD_BYTES, extract_upload
 from .models import SafetyAssessment
@@ -175,6 +175,55 @@ async def chat(request: Request) -> JSONResponse:
     return JSONResponse(reply.model_dump())
 
 
+async def suggest_plan(request: Request) -> JSONResponse:
+    """Generate genuinely new suggestions: tests, procedures, considerations.
+
+    This is opt-in, live-mode-only content the deterministic layer never
+    computed. It carries its own guardrail in agent.generate_ai_plan, which is
+    stricter than the summary guardrail: a rejected item is dropped, not
+    softened, and an empty result is returned as a normal, expected outcome
+    rather than an error.
+    """
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+
+    mode = str(body.get("mode", "")).lower()
+    if mode != "live":
+        return JSONResponse(
+            {
+                "error": (
+                    "The AI-suggested plan needs a live model call. Run the "
+                    "review in Live AI mode first."
+                )
+            },
+            status_code=400,
+        )
+
+    try:
+        assessment = SafetyAssessment.model_validate(body.get("assessment"))
+    except Exception:  # noqa: BLE001 - pydantic raises several types here
+        return JSONResponse(
+            {"error": "a valid assessment from /api/analyze is required"},
+            status_code=400,
+        )
+
+    try:
+        result = await run_in_threadpool(generate_ai_plan, assessment)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=422)
+    except RuntimeError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception as exc:  # noqa: BLE001 - surface a safe, generic failure
+        return JSONResponse(
+            {"error": f"{type(exc).__name__}: suggestion generation failed"},
+            status_code=502,
+        )
+
+    return JSONResponse(result.model_dump())
+
+
 app = Starlette(
     routes=[
         Route("/", index),
@@ -182,6 +231,7 @@ app = Starlette(
         Route("/api/sample", sample),
         Route("/api/analyze", analyze, methods=["POST"]),
         Route("/api/extract", extract, methods=["POST"]),
+        Route("/api/suggest-plan", suggest_plan, methods=["POST"]),
         Route("/api/chat", chat, methods=["POST"]),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]

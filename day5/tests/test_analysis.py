@@ -176,3 +176,72 @@ def test_empty_medication_list_is_rejected() -> None:
 def test_impossible_age_is_rejected() -> None:
     with pytest.raises(ValueError):
         assess_profile({"age": 900, "medications": [{"name": "Warfarin"}]})
+
+
+# ---------- suggested plan (deterministic) ----------
+
+
+def test_findings_carry_structured_tests_and_procedure() -> None:
+    result = assess_profile(
+        {"age": 60, "medications": [{"name": "Ketoconazole"}, {"name": "Simvastatin"}]}
+    )
+    finding = result.findings[0]
+    assert finding.suggested_tests
+    assert finding.suggested_procedure
+    assert "Creatine kinase (CK)" in finding.suggested_tests
+
+
+def test_plan_is_aggregated_and_deduplicated_across_findings() -> None:
+    # PAIR-01 and PAIR-02 both suggest "Creatine kinase (CK)"; it must appear once.
+    result = assess_profile(
+        {
+            "age": 60,
+            "medications": [
+                {"name": "Ketoconazole"},
+                {"name": "Simvastatin"},
+                {"name": "Amiodarone"},
+            ],
+        }
+    )
+    assert result.plan_tests.count("Creatine kinase (CK)") == 1
+    assert result.plan_tests and result.plan_procedures
+
+
+def test_no_findings_means_no_plan() -> None:
+    result = assess_profile(
+        {"age": 40, "medications": [{"name": "Paracetamol"}]}
+    )
+    assert result.plan_tests == []
+    assert result.plan_procedures == []
+
+
+# ---------- BMI and BSA inputs ----------
+
+
+def test_bmi_and_bsa_are_accepted_and_rendered() -> None:
+    result = assess_profile(
+        {"age": 60, "bmi": 37.2, "bsa": 1.9, "medications": [{"name": "Warfarin"}]}
+    )
+    assert result.profile_summary["BMI"] == "37.2"
+    assert result.profile_summary["BSA (m^2)"] == "1.9"
+
+
+def test_high_bmi_is_a_patient_modifier() -> None:
+    result = assess_profile(
+        {"age": 40, "bmi": 40, "medications": [{"name": "Warfarin"}]}
+    )
+    assert any("BMI 40" in m for m in result.patient_modifiers)
+
+
+def test_low_bmi_is_a_patient_modifier() -> None:
+    result = assess_profile(
+        {"age": 40, "bmi": 16, "medications": [{"name": "Warfarin"}]}
+    )
+    assert any("below 18.5" in m for m in result.patient_modifiers)
+
+
+def test_bmi_out_of_range_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        assess_profile(
+            {"age": 40, "bmi": 500, "medications": [{"name": "Warfarin"}]}
+        )
