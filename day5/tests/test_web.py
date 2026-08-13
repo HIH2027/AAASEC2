@@ -1,27 +1,35 @@
+"""Dashboard routes, with the MCP call replaced by validated sample data."""
+
 import pytest
 from starlette.testclient import TestClient
 
-from secure_inventory import web
-from secure_inventory.analysis import analyze_inventory
-from secure_inventory.models import AgentResult
+from medication_safety import web
+from medication_safety.agent import _deterministic_summary
+from medication_safety.analysis import assess_profile
+from medication_safety.models import AgentResult
 
 SAMPLE = {
-    "items": [
-        {"name": "TS101 iron", "qty": 4, "unit_cost_sar": 320},
-        {"name": "ESC 45A", "qty": 12, "unit_cost_sar": 95},
-    ]
+    "age": 78,
+    "warfarin_indication": "DVT",
+    "inr": 1.6,
+    "egfr": 42,
+    "medications": [
+        {"name": "Warfarin"},
+        {"name": "Amiodarone"},
+        {"name": "Ketoconazole"},
+        {"name": "Simvastatin"},
+    ],
 }
 
 
 @pytest.fixture
 def client(monkeypatch):
-    """Serve the dashboard with the MCP call replaced by validated sample data."""
-
     def fake_run(*, offline: bool = False) -> AgentResult:
-        analysis = analyze_inventory(SAMPLE)
+        assessment = assess_profile(SAMPLE)
         return AgentResult(
-            analysis=analysis,
-            recommendation="Restock TS101 iron first because quantity is below 5.",
+            assessment=assessment,
+            summary=_deterministic_summary(assessment),
+            summary_source="deterministic",
             mode="offline" if offline else "live",
         )
 
@@ -30,16 +38,18 @@ def client(monkeypatch):
         yield test_client
 
 
-def test_health_reports_ok(client) -> None:
+def test_health_reports_ok_and_rule_count(client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "rules": 7}
 
 
-def test_index_page_is_served(client) -> None:
+def test_index_page_carries_the_prototype_notice(client) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "Secure Lab Inventory" in response.text
+    assert "Medication Safety Review" in response.text
+    assert "not for clinical use" in response.text
+    assert "does not replace" in response.text
 
 
 def test_analyze_defaults_to_offline_mode(client) -> None:
@@ -48,9 +58,10 @@ def test_analyze_defaults_to_offline_mode(client) -> None:
 
     payload = response.json()
     assert payload["mode"] == "offline"
-    assert payload["analysis"]["grand_total_sar"] == 2420
-    assert payload["analysis"]["low_stock_items"] == ["TS101 iron"]
-    assert payload["recommendation"].startswith("Restock TS101 iron")
+    findings = payload["assessment"]["findings"]
+    assert findings[0]["severity"] == "CONTRAINDICATED"
+    assert findings[0]["action_class"] == "AVOID"
+    assert all(f["sources"] for f in findings)
 
 
 def test_analyze_accepts_live_mode(client) -> None:
@@ -65,6 +76,13 @@ def test_analyze_rejects_unknown_mode(client) -> None:
     assert "offline" in response.json()["error"]
 
 
+def test_response_carries_boundary_and_missing_information(client) -> None:
+    assessment = client.post("/api/analyze", json={}).json()["assessment"]
+    assert any("does not replace" in line for line in assessment["boundary"])
+    assert "Potassium" in assessment["missing_information"]
+    assert assessment["profile_summary"]["Liver status"] == "Not provided"
+
+
 def test_analyze_never_returns_credentials(client) -> None:
     body = client.post("/api/analyze", json={}).text.lower()
     for secret in ("api_key", "token", "authorization", "bearer"):
@@ -73,7 +91,7 @@ def test_analyze_never_returns_credentials(client) -> None:
 
 def test_guardrail_failure_returns_422(client, monkeypatch) -> None:
     def rejecting_run(*, offline: bool = False) -> AgentResult:
-        raise ValueError("Inventory data failed the prompt-injection guardrail")
+        raise ValueError("Medication data failed the prompt-injection guardrail")
 
     monkeypatch.setattr(web, "run_agent_result", rejecting_run)
     response = client.post("/api/analyze", json={})

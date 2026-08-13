@@ -1,7 +1,7 @@
 [project]
-name = "secure-inventory-agent"
+name = "medication-safety-agent"
 version = "0.1.0"
-description = "Authenticated inventory risk agent for the AAASE capstone"
+description = "Pharmacist-facing drug-drug contraindication checker for the AAASE capstone"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=3.4,<4",
@@ -16,16 +16,16 @@ dependencies = [
 dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [project.scripts]
-inventory-agent = "secure_inventory.cli:main"
-inventory-mcp = "secure_inventory.server:main"
-inventory-web = "secure_inventory.web:main"
+medsafety-agent = "medication_safety.cli:main"
+medsafety-mcp = "medication_safety.server:main"
+medsafety-web = "medication_safety.web:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/secure_inventory"]
+packages = ["src/medication_safety"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,283 @@
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --contra: #f87171;
+  --major: #fbbf24;
+  --ok: #4ade80;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.55;
+}
+
+main {
+  max-width: 62rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 1rem;
+  color: var(--muted);
+}
+
+.notice {
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-left: 4px solid var(--contra);
+  border-radius: 0.5rem;
+  background: rgba(248, 113, 113, 0.09);
+  font-size: 0.92rem;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+fieldset {
+  flex: 1 1 22rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+}
+
+legend,
+.card-label,
+th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+fieldset label {
+  display: block;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+
+button {
+  padding: 0.7rem 1.4rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: #082f49;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.status {
+  color: var(--muted);
+  min-height: 1.5rem;
+}
+
+.status.error {
+  color: var(--major);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.card,
+.summary,
+.finding {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--panel);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.summary {
+  border-left: 4px solid var(--accent);
+}
+
+.summary h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary p {
+  margin: 0;
+  font-size: 1.03rem;
+}
+
+.section-heading {
+  margin: 1.75rem 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+th,
+td {
+  padding: 0.5rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td.field {
+  color: var(--muted);
+  width: 16rem;
+}
+
+td.absent {
+  color: var(--major);
+  font-style: italic;
+}
+
+.finding {
+  margin-bottom: 0.9rem;
+  border-left: 4px solid var(--border);
+}
+
+.finding.CONTRAINDICATED {
+  border-left-color: var(--contra);
+}
+
+.finding.MAJOR {
+  border-left-color: var(--major);
+}
+
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.finding-pair {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.badge.CONTRAINDICATED {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--contra);
+}
+
+.badge.MAJOR {
+  background: rgba(251, 191, 36, 0.18);
+  color: var(--major);
+}
+
+.badge.action {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent);
+}
+
+.badge.rule {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+}
+
+.finding p {
+  margin: 0.3rem 0;
+}
+
+.finding .label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.finding ul {
+  margin: 0.2rem 0 0;
+  padding-left: 1.1rem;
+  word-break: break-all;
+}
+
+.finding a {
+  color: var(--accent);
+  font-size: 0.86rem;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+li {
+  margin: 0.2rem 0;
+}
+
+#missing li {
+  color: var(--major);
+}
+
+.empty {
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.5rem;
+  color: var(--muted);
+}

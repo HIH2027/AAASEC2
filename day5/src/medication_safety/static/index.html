@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Medication Safety Review</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Medication Safety Review</h1>
+        <p class="subtitle">
+          Pharmacist-facing drug&ndash;drug contraindication and interaction check.
+          The agent runs on the server; API keys and MCP tokens never reach this page.
+        </p>
+      </header>
+
+      <div class="notice" role="note">
+        <strong>Educational and research prototype.</strong> Not an authorised
+        medical device and not for clinical use.
+        It supports, and does not replace, a licensed pharmacist and the
+        treating prescriber. Enter de-identified data only.
+      </div>
+
+      <section class="controls">
+        <fieldset>
+          <legend>Summary mode</legend>
+          <label>
+            <input type="radio" name="mode" value="offline" checked />
+            Offline (deterministic, no LLM request)
+          </label>
+          <label>
+            <input type="radio" name="mode" value="live" />
+            Live AI (phrasing only, traced in LangSmith)
+          </label>
+        </fieldset>
+        <button id="run">Run review</button>
+      </section>
+
+      <p id="status" class="status" role="status">
+        Choose a mode and run the review.
+      </p>
+
+      <section id="results" hidden>
+        <div class="cards">
+          <div class="card">
+            <span class="card-label">Verified findings</span>
+            <span class="card-value" id="finding-count"></span>
+          </div>
+          <div class="card">
+            <span class="card-label">Highest severity</span>
+            <span class="card-value" id="top-severity"></span>
+          </div>
+          <div class="card">
+            <span class="card-label">Summary source</span>
+            <span class="card-value" id="summary-source"></span>
+          </div>
+        </div>
+
+        <div class="summary">
+          <h2>Handover summary</h2>
+          <p id="summary"></p>
+        </div>
+
+        <h2 class="section-heading">Patient profile</h2>
+        <table>
+          <tbody id="profile-rows"></tbody>
+        </table>
+
+        <h2 class="section-heading">Findings</h2>
+        <div id="findings"></div>
+
+        <h2 class="section-heading">Patient-specific modifiers</h2>
+        <ul id="modifiers"></ul>
+
+        <div id="inr-block" hidden>
+          <h2 class="section-heading">INR context</h2>
+          <ul id="inr-context"></ul>
+        </div>
+
+        <h2 class="section-heading">Missing information needed for confirmation</h2>
+        <ul id="missing"></ul>
+
+        <h2 class="section-heading">Boundary</h2>
+        <ul id="boundary"></ul>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

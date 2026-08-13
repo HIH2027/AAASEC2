@@ -1,7 +1,7 @@
 """Local Starlette dashboard that runs the agent server-side.
 
-The browser never receives an API key or an MCP bearer token. It only posts a
-mode and receives the validated analysis that the agent already produced.
+The browser never receives an API key or an MCP bearer token. It posts a mode
+and receives the assessment the deterministic layer already produced.
 """
 
 from pathlib import Path
@@ -14,13 +14,14 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from .agent import run_agent_result
+from .rules import TOTAL_RULE_COUNT
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 
 async def health(request: Request) -> JSONResponse:
     """Report that the dashboard process is up."""
-    return JSONResponse({"status": "ok"})
+    return JSONResponse({"status": "ok", "rules": TOTAL_RULE_COUNT})
 
 
 async def index(request: Request) -> FileResponse:
@@ -28,7 +29,7 @@ async def index(request: Request) -> FileResponse:
 
 
 async def analyze(request: Request) -> JSONResponse:
-    """Run the agent for the requested mode and return validated JSON."""
+    """Run the agent for the requested mode and return the assessment."""
     try:
         body = await request.json()
     except ValueError:
@@ -36,12 +37,15 @@ async def analyze(request: Request) -> JSONResponse:
 
     mode = str(body.get("mode", "offline")).lower()
     if mode not in {"offline", "live"}:
-        return JSONResponse({"error": "mode must be 'offline' or 'live'"}, status_code=400)
+        return JSONResponse(
+            {"error": "mode must be 'offline' or 'live'"}, status_code=400
+        )
 
     try:
         # The agent uses asyncio.run() internally, so it must run off this loop.
         result = await run_in_threadpool(run_agent_result, offline=mode == "offline")
     except ValueError as exc:
+        # Guardrail rejections are safe to show: they describe the input, not secrets.
         return JSONResponse({"error": str(exc)}, status_code=422)
     except Exception as exc:  # noqa: BLE001 - surface a safe, generic failure
         return JSONResponse(
