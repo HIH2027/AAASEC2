@@ -1,0 +1,7 @@
+.venv/
+.env
+tests/
+assets/
+*.pptx
+__pycache__/
+.pytest_cache/

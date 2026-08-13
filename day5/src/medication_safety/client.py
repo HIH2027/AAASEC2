@@ -4,12 +4,14 @@ import asyncio
 import os
 from typing import Any
 
-from fastmcp import Client
-from fastmcp.client.auth import BearerAuth
-
 
 def fetch_patient_profile() -> dict[str, Any]:
     """Fetch a de-identified profile with the least credential that allows it."""
+    # Imported lazily so a deployment that only serves typed and uploaded
+    # profiles does not need fastmcp installed at all.
+    from fastmcp import Client
+    from fastmcp.client.auth import BearerAuth
+
     url = os.getenv("MCP_URL", "http://localhost:8010/mcp")
     token = os.getenv("MCP_CLINICAL_TOKEN", "clinical-demo-token")
 

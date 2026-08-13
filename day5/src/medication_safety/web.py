@@ -52,7 +52,22 @@ async def analyze(request: Request) -> JSONResponse:
         if profile is None:
             # No profile supplied: pull the protected one over authenticated MCP.
             # The agent uses asyncio.run() internally, so it must run off this loop.
-            result = await run_in_threadpool(run_agent_result, offline=offline)
+            try:
+                result = await run_in_threadpool(run_agent_result, offline=offline)
+            except (OSError, ImportError) as exc:
+                # A hosted deployment has no route to a local MCP service. Say
+                # so plainly instead of reporting a generic agent failure.
+                return JSONResponse(
+                    {
+                        "error": (
+                            "The protected MCP service is not reachable from this "
+                            "deployment. Enter a profile in the slots or upload a "
+                            "medication list instead."
+                        ),
+                        "detail": type(exc).__name__,
+                    },
+                    status_code=503,
+                )
         else:
             if not isinstance(profile, dict):
                 return JSONResponse(
