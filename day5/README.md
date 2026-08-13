@@ -178,6 +178,8 @@ PASS admin token
 The live recommendation call was recorded successfully in LangSmith project
 `AAASEC2-Capstone` as run `019ffa3f-5ce8-7500-9ae2-14dff8fc42a7`.
 
+![Successful LangSmith capstone trace](assets/langsmith-capstone-trace.png)
+
 ## Limitations
 
 - Static tokens are suitable only for this local course demonstration.
