@@ -18,7 +18,7 @@ from .chat import answer_question
 from .extraction import MAX_UPLOAD_BYTES, extract_upload
 from .models import SafetyAssessment
 from .rules import TOTAL_RULE_COUNT
-from .server import SAMPLE_PROFILE
+from .sample import SAMPLE_PROFILE
 
 STATIC_DIR = Path(__file__).parent / "static"
 
