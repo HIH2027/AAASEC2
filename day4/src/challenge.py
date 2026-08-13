@@ -53,7 +53,10 @@ if __name__ == "__main__":
             tools=[fetch_my_data],
             backend=backend,
         )
-        result = agent.invoke({"messages": [{"role": "user", "content": MISSION}]})
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": MISSION}]},
+            config={"recursion_limit": 12},
+        )
         print(result["messages"][-1].content)
     finally:
         cleanup()

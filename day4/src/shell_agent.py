@@ -19,7 +19,9 @@ WORK_DIR = Path(__file__).resolve().parent.parent / "work"
 VENV_SCRIPTS = Path(__file__).resolve().parent.parent / ".venv" / "Scripts"
 
 llm = ChatOpenAI(
-    model="openrouter/free",
+    model=os.getenv(
+        "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"
+    ),
     temperature=0,
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
